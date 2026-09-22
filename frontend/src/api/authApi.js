@@ -1,3 +1,8 @@
+// ============================================================
+// PragyanAI Student Verification Platform
+// File: frontend/src/api/authApi.js
+// ============================================================
+
 import api from "./api";
 
 import {
@@ -10,404 +15,459 @@ import {
 } from "../utils/storage";
 
 
-/**
- * ============================================================
- * AUTH API
- * ============================================================
- *
- * Student authentication and registration API.
- *
- * Backend:
- *
- * POST /api/auth/register
- * POST /api/auth/login
- * GET  /api/students/me
- *
- * ============================================================
- */
+// ============================================================
+// REGISTER STUDENT
+// ============================================================
 
+export const registerStudent = async (
+  registrationData
+) => {
 
-/* ============================================================
-   REGISTER STUDENT
-   ============================================================ */
-
-export async function registerStudent(studentData) {
-  try {
-    const response = await api.post(
-      "/auth/register",
-      studentData
+  if (
+    !registrationData ||
+    typeof registrationData !== "object"
+  ) {
+    throw new Error(
+      "Registration data must be an object."
     );
-
-    const data = response.data;
-
-    /*
-     * Some backend implementations may return:
-     *
-     * {
-     *   access_token: "...",
-     *   token_type: "bearer",
-     *   student: {...}
-     * }
-     *
-     * If registration returns a token, store it.
-     */
-
-    if (data?.access_token) {
-      setStudentToken(data.access_token);
-    }
-
-    /*
-     * Student information may be returned directly
-     * or inside data.student.
-     */
-
-    const student =
-      data?.student ||
-      data?.user ||
-      data;
-
-    /*
-     * Save registration information for the OTP pages.
-     *
-     * Register
-     *    ↓
-     * Email Verification
-     *    ↓
-     * Phone Verification
-     */
-
-    saveRegistrationData({
-      email:
-        student?.email ||
-        studentData?.email ||
-        "",
-
-      phone:
-        student?.phone ||
-        studentData?.phone ||
-        "",
-
-      studentId:
-        student?.id ||
-        student?.student_id ||
-        data?.student_id ||
-        "",
-    });
-
-    return data;
-
-  } catch (error) {
-    throw normalizeAuthError(error);
   }
-}
 
+  const payload = {
+    full_name:
+      String(
+        registrationData.full_name || ""
+      ).trim(),
 
-/* ============================================================
-   LOGIN STUDENT
-   ============================================================ */
+    college_name:
+      String(
+        registrationData.college_name || ""
+      ).trim(),
 
-export async function loginStudent(credentials) {
+    degree:
+      String(
+        registrationData.degree || ""
+      ).trim(),
+
+    branch:
+      String(
+        registrationData.branch || ""
+      ).trim(),
+
+    tenth_cgpa:
+      registrationData.tenth_cgpa === "" ||
+      registrationData.tenth_cgpa === undefined
+        ? null
+        : registrationData.tenth_cgpa,
+
+    twelfth_cgpa:
+      registrationData.twelfth_cgpa === "" ||
+      registrationData.twelfth_cgpa === undefined
+        ? null
+        : registrationData.twelfth_cgpa,
+
+    be_cgpa:
+      registrationData.be_cgpa === "" ||
+      registrationData.be_cgpa === undefined
+        ? null
+        : registrationData.be_cgpa,
+
+    phone:
+      String(
+        registrationData.phone || ""
+      ).trim(),
+
+    email:
+      String(
+        registrationData.email || ""
+      ).trim()
+      .toLowerCase(),
+
+    password:
+      String(
+        registrationData.password || ""
+      ),
+  };
+
+  console.log(
+    "Register payload:",
+    {
+      ...payload,
+      password: "***",
+    }
+  );
+
   try {
-    const response = await api.post(
-      "/auth/login",
-      credentials
-    );
 
-    const data = response.data;
+    const response =
+      await api.post(
+        "/auth/register",
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
 
-    /*
-     * Expected backend response:
-     *
-     * {
-     *   access_token: "...",
-     *   token_type: "bearer"
-     * }
-     */
+    // --------------------------------------------------------
+    // Save registration information
+    // --------------------------------------------------------
 
-    if (!data?.access_token) {
-      throw new Error(
-        "Login succeeded but the server did not return an access token."
+    try {
+
+      saveRegistrationData(
+        response.data,
+        payload
+      );
+
+    } catch (storageError) {
+
+      console.warn(
+        "Unable to save registration data:",
+        storageError
       );
     }
 
-    /*
-     * Store JWT.
-     */
-
-    setStudentToken(
-      data.access_token
-    );
-
-    return data;
+    return response.data;
 
   } catch (error) {
 
-    /*
-     * Never keep an invalid/expired token after
-     * a failed login.
-     */
+    console.error(
+      "Student registration API error:",
+      error
+    );
 
-    removeStudentToken();
-
-    throw normalizeAuthError(error);
+    throw error;
   }
-}
+};
 
 
-/* ============================================================
-   GET CURRENT STUDENT
-   ============================================================ */
+// ============================================================
+// LOGIN STUDENT
+// ============================================================
 
-export async function getCurrentStudent() {
+export const loginStudent = async (
+  email,
+  password
+) => {
+
+  // ----------------------------------------------------------
+  // Normalize input
+  // ----------------------------------------------------------
+
+  const normalizedEmail =
+    String(email || "")
+      .trim()
+      .toLowerCase();
+
+  const normalizedPassword =
+    String(password || "");
+
+  // ----------------------------------------------------------
+  // Validate input
+  // ----------------------------------------------------------
+
+  if (!normalizedEmail) {
+    throw new Error(
+      "Email address is required."
+    );
+  }
+
+  if (!normalizedPassword) {
+    throw new Error(
+      "Password is required."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // IMPORTANT:
+  // FastAPI LoginRequest expects a JSON OBJECT:
+  //
+  // {
+  //   "email": "...",
+  //   "password": "..."
+  // }
+  // ----------------------------------------------------------
+
+  const payload = {
+    email: normalizedEmail,
+    password: normalizedPassword,
+  };
+
+  console.log(
+    "Student login payload:",
+    {
+      email: normalizedEmail,
+      password: "***",
+    }
+  );
+
   try {
-    const response = await api.get(
-      "/students/me"
+
+    const response =
+      await api.post(
+        "/auth/login",
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Accept:
+              "application/json",
+          },
+          timeout: 30000,
+        }
+      );
+
+    console.log(
+      "Student login response:",
+      response.data
+    );
+
+    // --------------------------------------------------------
+    // Validate response
+    // --------------------------------------------------------
+
+    if (
+      !response.data ||
+      typeof response.data !== "object"
+    ) {
+
+      throw new Error(
+        "Invalid login response from server."
+      );
+    }
+
+    const accessToken =
+      response.data.access_token;
+
+    if (!accessToken) {
+
+      throw new Error(
+        "Server did not return an access token."
+      );
+    }
+
+    // --------------------------------------------------------
+    // Store token
+    // --------------------------------------------------------
+
+    setStudentToken(
+      accessToken
     );
 
     return response.data;
 
   } catch (error) {
-    throw normalizeAuthError(error);
-  }
-}
 
-
-/* ============================================================
-   LOGOUT STUDENT
-   ============================================================ */
-
-export function logoutStudent() {
-  removeStudentToken();
-}
-
-
-/* ============================================================
-   CHECK STUDENT LOGIN
-   ============================================================ */
-
-export function isStudentLoggedIn() {
-  return Boolean(
-    getStudentToken()
-  );
-}
-
-
-/* ============================================================
-   CLEAR STUDENT TOKEN
-   ============================================================ */
-
-export function clearStudentToken() {
-  removeStudentToken();
-}
-
-
-/* ============================================================
-   STORE REGISTRATION INFORMATION
-   ============================================================ */
-
-export function storeRegistrationInfo(data) {
-  saveRegistrationData(data);
-}
-
-
-/* ============================================================
-   GET REGISTRATION EMAIL
-   ============================================================ */
-
-export function getRegistrationEmail() {
-  const data = getRegistrationData();
-
-  return data?.email || "";
-}
-
-
-/* ============================================================
-   GET REGISTRATION PHONE
-   ============================================================ */
-
-export function getRegistrationPhone() {
-  const data = getRegistrationData();
-
-  return data?.phone || "";
-}
-
-
-/* ============================================================
-   GET REGISTRATION STUDENT ID
-   ============================================================ */
-
-export function getRegistrationStudentId() {
-  const data = getRegistrationData();
-
-  return (
-    data?.studentId ||
-    data?.student_id ||
-    ""
-  );
-}
-
-
-/* ============================================================
-   CLEAR REGISTRATION DATA
-   ============================================================ */
-
-export function clearStoredRegistrationData() {
-  clearRegistrationData();
-}
-
-
-/* ============================================================
-   NORMALIZE AUTH ERROR
-   ============================================================ */
-
-function normalizeAuthError(error) {
-
-  /*
-   * Network / CORS / server unavailable
-   */
-
-  if (!error?.response) {
-
-    if (error instanceof Error) {
-      return error;
-    }
-
-    return new Error(
-      "Unable to connect to the server. Please check your internet connection and try again."
+    console.error(
+      "Student login API error:",
+      error
     );
+
+    // --------------------------------------------------------
+    // Preserve Axios error so Login.jsx can read:
+    //
+    // error.response.status
+    // error.response.data.detail
+    // --------------------------------------------------------
+
+    throw error;
   }
-
-  const status =
-    error.response.status;
-
-  const data =
-    error.response.data;
+};
 
 
-  /* ==========================================================
-     FASTAPI VALIDATION ERROR
-     ========================================================== */
+// ============================================================
+// GET CURRENT STUDENT
+// ============================================================
 
-  if (Array.isArray(data?.detail)) {
+export const getCurrentStudent =
+  async () => {
 
-    const messages =
-      data.detail
-        .map((item) => {
+    try {
 
-          if (typeof item === "string") {
-            return item;
-          }
+      const response =
+        await api.get(
+          "/auth/me"
+        );
 
-          return item?.msg || "";
-        })
-        .filter(Boolean);
+      return response.data;
 
-    if (messages.length > 0) {
-      return new Error(
-        messages.join(" ")
+    } catch (error) {
+
+      console.error(
+        "Get current student failed:",
+        error
       );
+
+      throw error;
     }
-  }
+  };
 
 
-  /* ==========================================================
-     FASTAPI NORMAL ERROR
-     ========================================================== */
+// ============================================================
+// LOGOUT STUDENT
+// ============================================================
 
-  if (
-    typeof data?.detail === "string"
-  ) {
-    return new Error(
-      data.detail
+export const logoutStudent =
+  async () => {
+
+    try {
+
+      const token =
+        getStudentToken();
+
+      if (token) {
+
+        try {
+
+          await api.post(
+            "/auth/logout"
+          );
+
+        } catch (error) {
+
+          console.warn(
+            "Backend logout failed:",
+            error
+          );
+        }
+      }
+
+    } finally {
+
+      removeStudentToken();
+    }
+
+    return true;
+  };
+
+
+// ============================================================
+// CHECK LOGIN STATUS
+// ============================================================
+
+export const isStudentLoggedIn =
+  () => {
+
+    const token =
+      getStudentToken();
+
+    return Boolean(token);
+  };
+
+
+// ============================================================
+// CLEAR STUDENT TOKEN
+// ============================================================
+
+export const clearStudentToken =
+  () => {
+
+    removeStudentToken();
+  };
+
+
+// ============================================================
+// STORE REGISTRATION INFORMATION
+// ============================================================
+
+export const storeRegistrationInfo =
+  (
+    response,
+    registrationData = {}
+  ) => {
+
+    try {
+
+      saveRegistrationData(
+        response,
+        registrationData
+      );
+
+      return getRegistrationData();
+
+    } catch (error) {
+
+      console.error(
+        "Unable to store registration information:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+
+// ============================================================
+// GET REGISTRATION EMAIL
+// ============================================================
+
+export const getRegistrationEmail =
+  () => {
+
+    const data =
+      getRegistrationData();
+
+    return (
+      data?.email ||
+      ""
     );
-  }
+  };
 
 
-  /* ==========================================================
-     ALTERNATIVE API ERROR
-     ========================================================== */
+// ============================================================
+// GET REGISTRATION PHONE
+// ============================================================
 
-  if (
-    typeof data?.message === "string"
-  ) {
-    return new Error(
-      data.message
+export const getRegistrationPhone =
+  () => {
+
+    const data =
+      getRegistrationData();
+
+    return (
+      data?.phone ||
+      ""
     );
-  }
+  };
 
 
-  /* ==========================================================
-     HTTP STATUS ERRORS
-     ========================================================== */
+// ============================================================
+// GET REGISTRATION STUDENT ID
+// ============================================================
 
-  if (status === 400) {
+export const getRegistrationStudentId =
+  () => {
 
-    return new Error(
-      "Invalid request. Please check the information entered."
+    const data =
+      getRegistrationData();
+
+    return (
+      data?.student_id ||
+      data?.id ||
+      null
     );
-  }
+  };
 
 
-  if (status === 401) {
+// ============================================================
+// CLEAR REGISTRATION DATA
+// ============================================================
 
-    return new Error(
-      "Invalid email or password."
-    );
-  }
+export const clearStoredRegistrationData =
+  () => {
 
-
-  if (status === 403) {
-
-    return new Error(
-      "You are not authorized to perform this action."
-    );
-  }
+    clearRegistrationData();
+  };
 
 
-  if (status === 404) {
+// ============================================================
+// DEFAULT EXPORT
+// ============================================================
 
-    return new Error(
-      "The requested resource was not found."
-    );
-  }
-
-
-  if (status === 409) {
-
-    return new Error(
-      "An account with this email address or phone number already exists."
-    );
-  }
-
-
-  if (status === 422) {
-
-    return new Error(
-      "Please check the information entered and try again."
-    );
-  }
-
-
-  if (status >= 500) {
-
-    return new Error(
-      "Server error. Please try again later."
-    );
-  }
-
-
-  return new Error(
-    error?.message ||
-    "Authentication request failed."
-  );
-}
-
-
-/* ============================================================
-   DEFAULT EXPORT
-   ============================================================ */
-
-const authApi = {
+export default {
   registerStudent,
   loginStudent,
   getCurrentStudent,
@@ -420,5 +480,3 @@ const authApi = {
   getRegistrationStudentId,
   clearStoredRegistrationData,
 };
-
-export default authApi;
