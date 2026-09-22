@@ -3,6 +3,7 @@
 # File: backend/schemas.py
 # ============================================================
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import (
@@ -15,13 +16,10 @@ from pydantic import (
 
 
 # ============================================================
-# COMMON CONFIG
+# BASE ORM SCHEMA
 # ============================================================
 
 class ORMBaseModel(BaseModel):
-    """
-    Base schema configuration for SQLAlchemy ORM objects.
-    """
 
     model_config = ConfigDict(
         from_attributes=True
@@ -33,13 +31,6 @@ class ORMBaseModel(BaseModel):
 # ============================================================
 
 class StudentRegister(BaseModel):
-    """
-    Student registration request.
-
-    Used by:
-
-        POST /api/auth/register
-    """
 
     full_name: str = Field(
         ...,
@@ -97,10 +88,6 @@ class StudentRegister(BaseModel):
         max_length=128,
     )
 
-    # --------------------------------------------------------
-    # CLEAN TEXT FIELDS
-    # --------------------------------------------------------
-
     @field_validator(
         "full_name",
         "college_name",
@@ -108,7 +95,7 @@ class StudentRegister(BaseModel):
         "branch",
     )
     @classmethod
-    def clean_text(cls, value: str) -> str:
+    def clean_text(cls, value: str):
 
         value = value.strip()
 
@@ -120,13 +107,9 @@ class StudentRegister(BaseModel):
 
         return value
 
-    # --------------------------------------------------------
-    # CLEAN PHONE
-    # --------------------------------------------------------
-
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(cls, value: str):
 
         value = value.strip()
 
@@ -140,15 +123,28 @@ class StudentRegister(BaseModel):
 
 
 # ============================================================
+# COMPATIBILITY ALIAS
+# ============================================================
+#
+# Existing auth.py expects:
+#
+# Register
+#
+# New code uses:
+#
+# StudentRegister
+#
+# Both now point to the same schema.
+# ============================================================
+
+Register = StudentRegister
+
+
+# ============================================================
 # STUDENT UPDATE
 # ============================================================
 
 class StudentUpdate(BaseModel):
-    """
-    Update student profile.
-
-    All fields are optional.
-    """
 
     full_name: Optional[str] = Field(
         default=None,
@@ -208,7 +204,7 @@ class StudentUpdate(BaseModel):
     def clean_optional_text(
         cls,
         value: Optional[str],
-    ) -> Optional[str]:
+    ):
 
         if value is None:
             return None
@@ -223,26 +219,6 @@ class StudentUpdate(BaseModel):
 
         return value
 
-    @field_validator("phone")
-    @classmethod
-    def clean_optional_phone(
-        cls,
-        value: Optional[str],
-    ) -> Optional[str]:
-
-        if value is None:
-            return None
-
-        value = value.strip()
-
-        if not value:
-
-            raise ValueError(
-                "Phone number cannot be empty."
-            )
-
-        return value
-
 
 # ============================================================
 # STUDENT RESPONSE
@@ -251,9 +227,6 @@ class StudentUpdate(BaseModel):
 class StudentResponse(
     ORMBaseModel
 ):
-    """
-    Student information returned to frontend.
-    """
 
     id: int
 
@@ -283,9 +256,25 @@ class StudentResponse(
 
     rejection_reason: Optional[str] = None
 
-    created_at: object
+    created_at: datetime
 
-    updated_at: object
+    updated_at: datetime
+
+
+# ============================================================
+# COMPATIBILITY ALIAS
+# ============================================================
+#
+# Existing auth.py expects:
+#
+# StudentOut
+#
+# New code uses:
+#
+# StudentResponse
+# ============================================================
+
+StudentOut = StudentResponse
 
 
 # ============================================================
@@ -293,17 +282,6 @@ class StudentResponse(
 # ============================================================
 
 class LoginRequest(BaseModel):
-    """
-    Student/Admin login request.
-
-    Used by:
-
-        POST /api/auth/login
-
-    and:
-
-        POST /api/admin/login
-    """
 
     email: EmailStr
 
@@ -315,13 +293,26 @@ class LoginRequest(BaseModel):
 
 
 # ============================================================
+# COMPATIBILITY ALIAS
+# ============================================================
+#
+# Existing auth.py expects:
+#
+# Login
+#
+# New code uses:
+#
+# LoginRequest
+# ============================================================
+
+Login = LoginRequest
+
+
+# ============================================================
 # TOKEN RESPONSE
 # ============================================================
 
 class TokenResponse(BaseModel):
-    """
-    JWT response.
-    """
 
     access_token: str
 
@@ -329,38 +320,26 @@ class TokenResponse(BaseModel):
 
 
 # ============================================================
+# COMPATIBILITY ALIAS
+# ============================================================
+
+Token = TokenResponse
+
+
+# ============================================================
 # EMAIL OTP REQUEST
 # ============================================================
 
 class OTPRequest(BaseModel):
-    """
-    Request to send an OTP.
-
-    Example:
-
-        {
-            "email": "student@gmail.com"
-        }
-    """
 
     email: EmailStr
 
 
 # ============================================================
-# EMAIL OTP VERIFY REQUEST
+# EMAIL OTP VERIFY
 # ============================================================
 
 class OTPVerifyRequest(BaseModel):
-    """
-    Verify email OTP.
-
-    Example:
-
-        {
-            "email": "student@gmail.com",
-            "otp": "123456"
-        }
-    """
 
     email: EmailStr
 
@@ -372,7 +351,7 @@ class OTPVerifyRequest(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str) -> str:
+    def validate_otp(cls, value: str):
 
         value = value.strip()
 
@@ -396,15 +375,6 @@ class OTPVerifyRequest(BaseModel):
 # ============================================================
 
 class PhoneOTPRequest(BaseModel):
-    """
-    Request to send phone OTP.
-
-    Example:
-
-        {
-            "phone": "+919876543210"
-        }
-    """
 
     phone: str = Field(
         ...,
@@ -414,7 +384,7 @@ class PhoneOTPRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(cls, value: str):
 
         value = value.strip()
 
@@ -428,20 +398,10 @@ class PhoneOTPRequest(BaseModel):
 
 
 # ============================================================
-# PHONE OTP VERIFY REQUEST
+# PHONE OTP VERIFY
 # ============================================================
 
 class PhoneOTPVerifyRequest(BaseModel):
-    """
-    Verify Twilio phone OTP.
-
-    Example:
-
-        {
-            "phone": "+919876543210",
-            "otp": "123456"
-        }
-    """
 
     phone: str = Field(
         ...,
@@ -457,7 +417,7 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(cls, value: str):
 
         value = value.strip()
 
@@ -471,7 +431,7 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str) -> str:
+    def validate_otp(cls, value: str):
 
         value = value.strip()
 
@@ -489,17 +449,6 @@ class PhoneOTPVerifyRequest(BaseModel):
 # ============================================================
 
 class AdminDecision(BaseModel):
-    """
-    Admin approval/rejection decision.
-
-    Used for rejection.
-
-    Example:
-
-        {
-            "reason": "Incomplete academic information"
-        }
-    """
 
     reason: Optional[str] = Field(
         default=None,
@@ -511,7 +460,7 @@ class AdminDecision(BaseModel):
     def clean_reason(
         cls,
         value: Optional[str],
-    ) -> Optional[str]:
+    ):
 
         if value is None:
             return None
@@ -529,9 +478,6 @@ class AdminDecision(BaseModel):
 # ============================================================
 
 class MessageResponse(BaseModel):
-    """
-    Generic API response.
-    """
 
     message: str
 
@@ -539,13 +485,17 @@ class MessageResponse(BaseModel):
 
 
 # ============================================================
+# COMPATIBILITY ALIAS
+# ============================================================
+
+Message = MessageResponse
+
+
+# ============================================================
 # REGISTRATION RESPONSE
 # ============================================================
 
 class RegistrationResponse(BaseModel):
-    """
-    Response after successful student registration.
-    """
 
     success: bool = True
 
@@ -569,9 +519,6 @@ class RegistrationResponse(BaseModel):
 # ============================================================
 
 class VerificationResponse(BaseModel):
-    """
-    Response after OTP verification.
-    """
 
     success: bool = True
 
@@ -587,9 +534,6 @@ class VerificationResponse(BaseModel):
 # ============================================================
 
 class AdminDashboardResponse(BaseModel):
-    """
-    Admin dashboard statistics.
-    """
 
     total_students: int
 
@@ -604,4 +548,3 @@ class AdminDashboardResponse(BaseModel):
     phone_verified: int
 
     fully_verified: int
-    
