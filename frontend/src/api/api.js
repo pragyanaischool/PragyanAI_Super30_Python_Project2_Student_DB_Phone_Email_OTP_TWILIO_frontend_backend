@@ -1,315 +1,152 @@
-// frontend/src/api/api.js
-
 import axios from "axios";
 
+/*
+|--------------------------------------------------------------------------
+| API BASE URL
+|--------------------------------------------------------------------------
+| Local:
+|   VITE_API_BASE_URL=http://127.0.0.1:8000/api
+|
+| Production:
+|   VITE_API_BASE_URL=https://your-render-service.onrender.com/api
+|
+*/
 
-// ============================================================
-// API BASE URL
-// ============================================================
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL;
-
-
-// ============================================================
-// VALIDATE API CONFIGURATION
-// ============================================================
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!API_BASE_URL) {
-  console.error(
-    "VITE_API_BASE_URL is not configured."
-  );
-
-  console.error(
-    "Please create frontend/.env and add:"
-  );
-
-  console.error(
-    "VITE_API_BASE_URL=https://YOUR-RENDER-BACKEND.onrender.com/api"
+  console.warn(
+    "VITE_API_BASE_URL is not configured. " +
+      "Please create frontend/.env and add VITE_API_BASE_URL."
   );
 }
 
-
-// ============================================================
-// AXIOS INSTANCE
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| Axios Instance
+|--------------------------------------------------------------------------
+*/
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-
+  baseURL: API_BASE_URL || "http://127.0.0.1:8000/api",
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-
-  timeout: 30000,
 });
 
-
-// ============================================================
-// REQUEST INTERCEPTOR
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| REQUEST INTERCEPTOR
+|--------------------------------------------------------------------------
+|
+| Automatically attaches the appropriate JWT token.
+|
+| Admin:
+|   admin_token
+|
+| Student:
+|   student_token
+|
+*/
 
 api.interceptors.request.use(
   (config) => {
+    const adminToken = localStorage.getItem("admin_token");
+    const studentToken = localStorage.getItem("student_token");
 
-    // --------------------------------------------------------
-    // Get admin token
-    // --------------------------------------------------------
-
-    const adminToken =
-      localStorage.getItem("admin_token");
-
-
-    // --------------------------------------------------------
-    // Get student token
-    // --------------------------------------------------------
-
-    const studentToken =
-      localStorage.getItem("student_token");
-
-
-    // --------------------------------------------------------
-    // Select available token
-    // --------------------------------------------------------
-
-    const token =
-      adminToken || studentToken;
-
-
-    // --------------------------------------------------------
-    // Add Authorization header
-    // --------------------------------------------------------
-
-    if (token) {
-
-      config.headers.Authorization =
-        `Bearer ${token}`;
-
+    /*
+     * Admin routes should use admin token.
+     */
+    if (config.url?.startsWith("/admin") && adminToken) {
+      config.headers.Authorization = `Bearer ${adminToken}`;
     }
 
-
-    // --------------------------------------------------------
-    // Debug information
-    // --------------------------------------------------------
-
-    console.log(
-      "API Request:",
-      config.method?.toUpperCase(),
-      config.url
-    );
-
+    /*
+     * Student routes should use student token.
+     */
+    else if (
+      !config.url?.startsWith("/admin") &&
+      studentToken
+    ) {
+      config.headers.Authorization = `Bearer ${studentToken}`;
+    }
 
     return config;
   },
-
   (error) => {
-
-    console.error(
-      "API Request Error:",
-      error
-    );
-
     return Promise.reject(error);
   }
 );
 
-
-// ============================================================
-// RESPONSE INTERCEPTOR
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| RESPONSE INTERCEPTOR
+|--------------------------------------------------------------------------
+|
+| Handles:
+|   401 Unauthorized
+|   403 Forbidden
+|   Network errors
+|
+*/
 
 api.interceptors.response.use(
-
   (response) => {
-
-    console.log(
-      "API Response:",
-      response.status,
-      response.config.url
-    );
-
     return response;
   },
 
-
-  async (error) => {
-
-    // --------------------------------------------------------
-    // Network error
-    // --------------------------------------------------------
-
+  (error) => {
+    /*
+     * No response from backend.
+     */
     if (!error.response) {
-
       console.error(
-        "Network Error:",
+        "API Network Error:",
         error.message
       );
 
       return Promise.reject(error);
     }
 
+    const status = error.response.status;
+    const currentPath = window.location.pathname;
 
-    const status =
-      error.response.status;
-
-
-    // --------------------------------------------------------
-    // Unauthorized
-    // --------------------------------------------------------
-
+    /*
+     * 401 Unauthorized
+     */
     if (status === 401) {
-
-      console.warn(
-        "Authentication token is invalid or expired."
-      );
-
-
-      // ------------------------------------------------------
-      // Remove stored tokens
-      // ------------------------------------------------------
-
-      localStorage.removeItem(
-        "admin_token"
-      );
-
-      localStorage.removeItem(
-        "student_token"
-      );
-
-
-      // ------------------------------------------------------
-      // Determine current page
-      // ------------------------------------------------------
-
-      const currentPath =
-        window.location.pathname;
-
-
-      // ------------------------------------------------------
-      // Don't redirect if already on login pages
-      // ------------------------------------------------------
-
-      const isAdminLoginPage =
-        currentPath === "/admin/login";
-
-
-      const isStudentLoginPage =
-        currentPath === "/login";
-
-
+      /*
+       * Admin session expired.
+       */
       if (
-        !isAdminLoginPage &&
-        !isStudentLoginPage
+        currentPath.startsWith("/admin") &&
+        currentPath !== "/admin/login"
       ) {
+        localStorage.removeItem("admin_token");
 
-        // ----------------------------------------------------
-        // Admin area
-        // ----------------------------------------------------
-
-        if (
-          currentPath.startsWith(
-            "/admin"
-          )
-        ) {
-
-          window.location.href =
-            "/admin/login";
-
-        }
-
-        // ----------------------------------------------------
-        // Student area
-        // ----------------------------------------------------
-
-        else {
-
-          window.location.href =
-            "/login";
-
-        }
-
+        window.location.href = "/admin/login";
       }
 
+      /*
+       * Student session expired.
+       */
+      else if (
+        !currentPath.startsWith("/admin") &&
+        currentPath !== "/login" &&
+        currentPath !== "/register" &&
+        currentPath !== "/verify-email" &&
+        currentPath !== "/verify-phone"
+      ) {
+        localStorage.removeItem("student_token");
+
+        window.location.href = "/login";
+      }
     }
-
-
-    // --------------------------------------------------------
-    // Forbidden
-    // --------------------------------------------------------
-
-    if (status === 403) {
-
-      console.warn(
-        "Access forbidden."
-      );
-
-    }
-
-
-    // --------------------------------------------------------
-    // Validation error
-    // --------------------------------------------------------
-
-    if (status === 422) {
-
-      console.warn(
-        "API validation error:",
-        error.response.data
-      );
-
-    }
-
-
-    // --------------------------------------------------------
-    // Server error
-    // --------------------------------------------------------
-
-    if (status >= 500) {
-
-      console.error(
-        "Backend server error:",
-        error.response.data
-      );
-
-    }
-
 
     return Promise.reject(error);
   }
 );
-
-
-// ============================================================
-// HEALTH CHECK
-// ============================================================
-
-export async function checkApiHealth() {
-
-  const response = await api.get(
-    "/../health"
-  );
-
-  return response.data;
-}
-
-
-// ============================================================
-// API INFORMATION
-// ============================================================
-
-export async function getApiInformation() {
-
-  const response = await api.get(
-    "/"
-  );
-
-  return response.data;
-}
-
-
-// ============================================================
-// EXPORT AXIOS INSTANCE
-// ============================================================
 
 export default api;
