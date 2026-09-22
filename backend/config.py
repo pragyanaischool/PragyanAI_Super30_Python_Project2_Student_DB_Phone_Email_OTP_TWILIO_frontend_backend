@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # --------------------------------------------------------
 
     frontend_url: str = (
-        "https://pragyanai-student-sql-email-phone.netlify.app/"
+        "https://pragyanai-student-sql-email-phone.netlify.app"
     )
 
     # --------------------------------------------------------
