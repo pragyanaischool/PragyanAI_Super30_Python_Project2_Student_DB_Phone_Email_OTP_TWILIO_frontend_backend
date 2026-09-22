@@ -1,0 +1,594 @@
+/* =========================================================
+   RESPONSIVE DESIGN
+   ========================================================= */
+
+/* =========================================================
+   LARGE TABLETS
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .container {
+    max-width:
+      100%;
+  }
+
+  .auth-container {
+    max-width:
+      900px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+  .admin-layout {
+    grid-template-columns:
+      200px 1fr;
+  }
+
+  .student-dashboard-grid {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+/* =========================================================
+   TABLETS
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .navbar-navigation {
+    display:
+      none;
+  }
+
+  .navbar-mobile-button {
+    display:
+      flex;
+  }
+
+  .navbar-mobile-menu {
+    position:
+      absolute;
+
+    top:
+      var(--navbar-height);
+
+    left:
+      15px;
+
+    right:
+      15px;
+
+    display:
+      flex;
+
+    flex-direction:
+      column;
+
+    padding:
+      10px;
+
+    background:
+      white;
+
+    border:
+      1px solid var(--border);
+
+    border-radius:
+      12px;
+
+    box-shadow:
+      var(--shadow-lg);
+  }
+
+  .navbar-mobile-menu .navbar-link {
+    padding:
+      11px 12px;
+  }
+
+  .navbar-mobile-action {
+    width:
+      100%;
+
+    margin-top:
+      4px;
+
+    padding:
+      11px 12px;
+
+    border:
+      none;
+
+    border-radius:
+      8px;
+
+    text-align:
+      left;
+
+    color:
+      var(--danger);
+
+    background:
+      var(--danger-light);
+
+    font-weight:
+      600;
+  }
+
+  .auth-container {
+    grid-template-columns:
+      1fr;
+
+    max-width:
+      600px;
+  }
+
+  .auth-brand-panel {
+    padding:
+      35px;
+
+    text-align:
+      center;
+  }
+
+  .auth-brand-logo {
+    margin-left:
+      auto;
+
+    margin-right:
+      auto;
+  }
+
+  .auth-features {
+    display:
+      grid;
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+    text-align:
+      left;
+  }
+
+  .auth-form-panel {
+    padding:
+      35px;
+  }
+
+  .admin-layout {
+    grid-template-columns:
+      1fr;
+  }
+
+  .admin-sidebar {
+    display:
+      none;
+  }
+
+  .admin-main {
+    padding:
+      22px;
+  }
+
+  .admin-student-details {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-verification-grid {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 650px) {
+  :root {
+    --navbar-height: 64px;
+  }
+
+  .container {
+    padding-left:
+      16px;
+
+    padding-right:
+      16px;
+  }
+
+  .navbar-container {
+    padding:
+      0 16px;
+  }
+
+  .navbar-logo {
+    width:
+      38px;
+
+    height:
+      38px;
+  }
+
+  .navbar-title {
+    font-size:
+      16px;
+  }
+
+  .navbar-subtitle {
+    font-size:
+      9px;
+  }
+
+  .footer-container {
+    padding:
+      35px 18px 20px;
+  }
+
+  .footer-grid {
+    grid-template-columns:
+      1fr 1fr;
+
+    gap:
+      30px 20px;
+  }
+
+  .footer-brand {
+    grid-column:
+      1 / -1;
+  }
+
+  .footer-bottom {
+    flex-direction:
+      column;
+
+    align-items:
+      flex-start;
+
+    gap:
+      4px;
+  }
+
+  /* -------------------------------------------------------
+     AUTH
+     ------------------------------------------------------- */
+
+  .auth-page {
+    padding:
+      25px 14px;
+  }
+
+  .auth-brand-panel {
+    padding:
+      30px 24px;
+  }
+
+  .auth-brand-panel h1 {
+    font-size:
+      27px;
+  }
+
+  .auth-features {
+    grid-template-columns:
+      1fr;
+  }
+
+  .auth-form-panel {
+    padding:
+      28px 22px;
+  }
+
+  .auth-form-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .auth-form-grid
+    .form-group-full {
+    grid-column:
+      auto;
+  }
+
+  .auth-form-header h2 {
+    font-size:
+      24px;
+  }
+
+  /* -------------------------------------------------------
+     OTP
+     ------------------------------------------------------- */
+
+  .otp-page {
+    padding:
+      25px 14px;
+  }
+
+  .otp-card {
+    padding:
+      30px 20px;
+  }
+
+  .otp-input-container {
+    gap:
+      6px;
+  }
+
+  .otp-input {
+    width:
+      42px;
+
+    height:
+      48px;
+
+    font-size:
+      18px;
+  }
+
+  /* -------------------------------------------------------
+     ADMIN LOGIN
+     ------------------------------------------------------- */
+
+  .admin-login-page {
+    padding:
+      20px 14px;
+  }
+
+  .admin-login-card {
+    padding:
+      28px 22px;
+  }
+
+  /* -------------------------------------------------------
+     ADMIN
+     ------------------------------------------------------- */
+
+  .admin-topbar {
+    padding:
+      0 16px;
+  }
+
+  .admin-user-info {
+    display:
+      none;
+  }
+
+  .admin-main {
+    padding:
+      18px 14px;
+  }
+
+  .admin-page-header {
+    flex-direction:
+      column;
+  }
+
+  .admin-page-header h1 {
+    font-size:
+      22px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns:
+      1fr 1fr;
+
+    gap:
+      10px;
+  }
+
+  .admin-stat-card {
+    padding:
+      15px;
+  }
+
+  .admin-stat-value {
+    font-size:
+      22px;
+  }
+
+  .admin-filter-bar {
+    flex-direction:
+      column;
+
+    align-items:
+      stretch;
+  }
+
+  .admin-filter-group {
+    width:
+      100%;
+  }
+
+  /* -------------------------------------------------------
+     STUDENT DASHBOARD
+     ------------------------------------------------------- */
+
+  .student-dashboard {
+    padding:
+      22px 14px 40px;
+  }
+
+  .student-welcome {
+    padding:
+      20px;
+
+    align-items:
+      flex-start;
+  }
+
+  .student-welcome h1 {
+    font-size:
+      21px;
+  }
+
+  .student-welcome-avatar {
+    width:
+      48px;
+
+    height:
+      48px;
+
+    font-size:
+      18px;
+  }
+
+  .student-verification-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-profile-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-quick-actions {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-profile-page {
+    padding:
+      22px 14px 40px;
+  }
+
+  .student-profile-form-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-profile-form-full {
+    grid-column:
+      auto;
+  }
+
+  .student-profile-actions {
+    flex-direction:
+      column-reverse;
+  }
+
+  .student-profile-actions
+    .button {
+    width:
+      100%;
+  }
+
+  /* -------------------------------------------------------
+     STUDENT CARD
+     ------------------------------------------------------- */
+
+  .student-card-header {
+    align-items:
+      flex-start;
+
+    flex-wrap:
+      wrap;
+  }
+
+  .student-card-header
+    .status-badge {
+    margin-left:
+      60px;
+  }
+
+  .student-info-row {
+    flex-direction:
+      column;
+
+    gap:
+      3px;
+  }
+
+  .student-info-value {
+    text-align:
+      left;
+  }
+
+  .student-academic-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .student-card-actions {
+    flex-direction:
+      column;
+  }
+
+  .student-card-actions
+    .button {
+    width:
+      100%;
+  }
+
+  /* -------------------------------------------------------
+     DIALOG
+     ------------------------------------------------------- */
+
+  .confirm-dialog {
+    padding:
+      25px 20px;
+  }
+
+  .dialog-actions {
+    flex-direction:
+      column-reverse;
+  }
+
+  .dialog-button {
+    width:
+      100%;
+  }
+}
+
+/* =========================================================
+   VERY SMALL DEVICES
+   ========================================================= */
+
+@media (max-width: 380px) {
+  .navbar-brand-text {
+    display:
+      none;
+  }
+
+  .otp-input-container {
+    gap:
+      4px;
+  }
+
+  .otp-input {
+    width:
+      38px;
+
+    height:
+      44px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior:
+      auto !important;
+
+    animation-duration:
+      0.01ms !important;
+
+    animation-iteration-count:
+      1 !important;
+
+    transition-duration:
+      0.01ms !important;
+  }
+}
