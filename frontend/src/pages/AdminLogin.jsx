@@ -1,251 +1,234 @@
-// frontend/src/pages/AdminLogin.jsx
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import {
-  adminLogin,
-  isAdminLoggedIn,
-} from "../api/adminApi";
-
-
-// ============================================================
-// ADMIN LOGIN PAGE
-// ============================================================
+import { useAdmin } from "../context/AdminContext";
+import { validateAdminLoginForm } from "../utils/validators";
 
 function AdminLogin() {
-
   const navigate = useNavigate();
 
+  const {
+    login,
+    isAuthenticated,
+  } = useAdmin();
 
-  // ==========================================================
-  // STATE
-  // ==========================================================
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
 
-  const [email, setEmail] = useState("");
-
-  const [password, setPassword] = useState("");
-
+  const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] =
     useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/admin/dashboard", {
+        replace: true,
+      });
+    }
+  }, [isAuthenticated, navigate]);
 
-  const [error, setError] =
-    useState("");
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
-  const [success, setSuccess] =
-    useState("");
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
 
+    setErrors((previous) => ({
+      ...previous,
+      [name]: "",
+    }));
 
-  // ==========================================================
-  // IF ALREADY LOGGED IN
-  // ==========================================================
-
-  // We intentionally don't redirect during render.
-  // The user can still submit/login normally.
-  // Dashboard protection should be handled by routing.
-
-
-  // ==========================================================
-  // HANDLE LOGIN
-  // ==========================================================
+    setServerError("");
+  };
 
   const handleSubmit = async (event) => {
-
     event.preventDefault();
 
-    setError("");
-    setSuccess("");
+    const validationErrors =
+      validateAdminLoginForm(formData);
 
-
-    // --------------------------------------------------------
-    // Validate email
-    // --------------------------------------------------------
-
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-    if (!cleanEmail) {
-
-      setError(
-        "Please enter your email address."
-      );
-
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
-
-
-    // --------------------------------------------------------
-    // Validate password
-    // --------------------------------------------------------
-
-    if (!password) {
-
-      setError(
-        "Please enter your password."
-      );
-
-      return;
-    }
-
-
-    // --------------------------------------------------------
-    // Start loading
-    // --------------------------------------------------------
-
-    setLoading(true);
-
 
     try {
+      setLoading(true);
+      setServerError("");
 
-      // ------------------------------------------------------
-      // Login
-      // ------------------------------------------------------
-
-      const result = await adminLogin(
-        cleanEmail,
-        password
+      await login(
+        formData.email.trim().toLowerCase(),
+        formData.password
       );
 
+      navigate("/admin/dashboard", {
+        replace: true,
+      });
+    } catch (errorObject) {
+      const detail =
+        errorObject?.response?.data?.detail;
 
-      // ------------------------------------------------------
-      // Validate token
-      // ------------------------------------------------------
-
-      if (!result?.access_token) {
-
-        throw new Error(
-          "Login succeeded but no access token was returned."
-        );
-      }
-
-
-      // ------------------------------------------------------
-      // Token is already stored by adminLogin()
-      // ------------------------------------------------------
-
-      setSuccess(
-        "Login successful. Redirecting..."
+      setServerError(
+        Array.isArray(detail)
+          ? detail.map((item) => item.msg).join(", ")
+          : detail ||
+              errorObject?.message ||
+              "Invalid administrator email or password."
       );
-
-
-      // ------------------------------------------------------
-      // Redirect to dashboard
-      // ------------------------------------------------------
-
-      setTimeout(() => {
-
-        navigate(
-          "/admin/dashboard",
-          {
-            replace: true,
-          }
-        );
-
-      }, 500);
-
-
-    } catch (err) {
-
-      console.error(
-        "Admin login failed:",
-        err
-      );
-
-
-      // ------------------------------------------------------
-      // Extract backend error
-      // ------------------------------------------------------
-
-      let errorMessage =
-        "Invalid email or password.";
-
-
-      if (
-        err?.response?.data?.detail
-      ) {
-
-        const detail =
-          err.response.data.detail;
-
-
-        if (typeof detail === "string") {
-
-          errorMessage = detail;
-
-        } else if (
-          Array.isArray(detail)
-        ) {
-
-          errorMessage =
-            detail
-              .map(
-                (item) =>
-                  item?.msg ||
-                  "Invalid input."
-              )
-              .join(", ");
-
-        }
-
-      } else if (err?.message) {
-
-        errorMessage =
-          err.message;
-
-      }
-
-
-      setError(errorMessage);
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
-
-  // ==========================================================
-  // RENDER
-  // ==========================================================
-
   return (
-
     <div className="admin-login-page">
+      <div className="admin-login-container">
+        <div className="admin-login-brand">
+          <div className="admin-logo">🛡️</div>
 
-      {/* ================================================== */}
-      {/* BACKGROUND */}
-      {/* ================================================== */}
+          <span>PRAGYANAI</span>
+        </div>
 
-      <div className="admin-login-background">
+        <div className="admin-login-header">
+          <span className="admin-badge">
+            Administrator Portal
+          </span>
 
-        <div className="admin-login-orb orb-one" />
+          <h1>Admin Login</h1>
 
-        <div className="admin-login-orb orb-two" />
+          <p>
+            Sign in to manage student registrations,
+            verification and approvals.
+          </p>
+        </div>
 
-        <div className="admin-login-grid" />
+        {serverError && (
+          <div className="error-message">
+            <span>⚠️</span>
+            <span>{serverError}</span>
+          </div>
+        )}
 
-      </div>
+        <form
+          className="admin-login-form"
+          onSubmit={handleSubmit}
+        >
+          <div className="form-group">
+            <label htmlFor="email">
+              Administrator Email
+            </label>
 
+            <div className="input-with-icon">
+              <span>📧</span>
 
-      {/* ================================================== */}
-      {/* MAIN CONTAINER */}
-      {/* ================================================== */}
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="admin@example.com"
+                autoComplete="username"
+                className={
+                  errors.email
+                    ? "input-error"
+                    : ""
+                }
+              />
+            </div>
 
-      <main className="admin-login-container">
+            {errors.email && (
+              <small className="field-error">
+                {errors.email}
+              </small>
+            )}
+          </div>
 
-        {/* ================================================= */}
-        {/* BRAND */}
-        {/* ================================================= */}
+          <div className="form-group">
+            <label htmlFor="password">
+              Password
+            </label>
 
-        <div className="admin-brand">
+            <div className="input-with-icon password-wrapper">
+              <span>🔐</span>
 
-          <Link
-            to="/"
-            className="back-link"
+              <input
+                id="password"
+                name="password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter administrator password"
+                autoComplete="current-password"
+                className={
+                  errors.password
+                    ? "input-error"
+                    : ""
+                }
+              />
+
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() =>
+                  setShowPassword(
+                    (previous) => !previous
+                  )
+                }
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+
+            {errors.password && (
+              <small className="field-error">
+                {errors.password}
+              </small>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary btn-block btn-lg"
+            disabled={loading}
           >
-            ← PragyanAI
+            {loading
+              ? "Signing in..."
+              : "Sign In to Admin Portal"}
+          </button>
+        </form>
+
+        <div className="admin-security-note">
+          <span>🔒</span>
+
+          <div>
+            <strong>Secure Administrator Access</strong>
+
+            <p>
+              This area is restricted to authorized
+              PragyanAI administrators.
+            </p>
+          </div>
+        </div>
+
+        <div className="admin-login-footer">
+          <Link to="/">
+            ← Back to Student Portal
           </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AdminLogin;
