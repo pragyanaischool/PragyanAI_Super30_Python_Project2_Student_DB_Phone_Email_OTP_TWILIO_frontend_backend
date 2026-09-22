@@ -6,7 +6,6 @@
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
-
 from passlib.context import CryptContext
 
 from config import settings
@@ -29,8 +28,6 @@ pwd_context = CryptContext(
 def hash_password(password: str) -> str:
     """
     Hash a plain-text password using bcrypt.
-
-    Never store the plain-text password in the database.
     """
 
     if not password:
@@ -50,7 +47,8 @@ def verify_password(
     hashed_password: str,
 ) -> bool:
     """
-    Compare a plain-text password with its bcrypt hash.
+    Verify a plain-text password against
+    the stored bcrypt password hash.
     """
 
     if not plain_password:
@@ -76,7 +74,7 @@ def verify_password(
 
 
 # ============================================================
-# CREATE ACCESS TOKEN
+# CREATE JWT ACCESS TOKEN
 # ============================================================
 
 def create_access_token(
@@ -85,14 +83,11 @@ def create_access_token(
 ) -> str:
     """
     Create a JWT access token.
-
-    The payload should contain the user's identity,
-    email and role.
     """
 
     to_encode = data.copy()
 
-    if expires_delta:
+    if expires_delta is not None:
 
         expire = (
             datetime.now(timezone.utc)
@@ -114,28 +109,26 @@ def create_access_token(
         }
     )
 
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         to_encode,
         settings.secret_key,
         algorithm="HS256",
     )
 
-    return encoded_jwt
-
 
 # ============================================================
-# DECODE ACCESS TOKEN
+# DECODE JWT ACCESS TOKEN
 # ============================================================
 
 def decode_access_token(
     token: str,
 ) -> dict | None:
     """
-    Decode and validate a JWT access token.
+    Decode and validate a JWT.
 
     Returns:
-        dict: JWT payload when valid.
-        None: when invalid or expired.
+        JWT payload if valid.
+        None if invalid or expired.
     """
 
     if not token:
@@ -178,7 +171,7 @@ def get_student_id_from_token(
     token: str,
 ) -> int | None:
     """
-    Extract the student ID from the JWT `sub` field.
+    Extract student ID from JWT 'sub'.
     """
 
     payload = decode_access_token(token)
@@ -192,24 +185,26 @@ def get_student_id_from_token(
         return None
 
     try:
+
         return int(subject)
 
     except (
         ValueError,
         TypeError,
     ):
+
         return None
 
 
 # ============================================================
-# GET USER ROLE FROM TOKEN
+# GET ROLE FROM TOKEN
 # ============================================================
 
 def get_role_from_token(
     token: str,
 ) -> str | None:
     """
-    Extract the role from the JWT payload.
+    Extract role from JWT.
     """
 
     payload = decode_access_token(token)
