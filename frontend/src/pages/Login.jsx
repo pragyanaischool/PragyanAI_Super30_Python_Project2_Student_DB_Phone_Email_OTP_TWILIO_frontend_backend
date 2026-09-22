@@ -1,8 +1,17 @@
-import { useEffect, useState } from "react";
+// ============================================================
+// PragyanAI Student Verification Platform
+// File: frontend/src/pages/Login.jsx
+// ============================================================
+
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
-import { validateLoginForm } from "../utils/validators";
+
+
+// ============================================================
+// LOGIN PAGE
+// ============================================================
 
 function Login() {
   const navigate = useNavigate();
@@ -11,235 +20,465 @@ function Login() {
   const {
     login,
     isAuthenticated,
+    loading,
+    authenticationChecked,
   } = useAuth();
 
+  // ----------------------------------------------------------
+  // FORM STATE
+  // ----------------------------------------------------------
+
   const [formData, setFormData] = useState({
-    email: location.state?.email || "",
+    email: "",
     password: "",
   });
 
-  const [errors, setErrors] = useState({});
-  const [serverError, setServerError] = useState("");
-  const [successMessage, setSuccessMessage] = useState(
-    location.state?.registrationCompleted
-      ? "Registration and verification completed. Please login."
-      : ""
-  );
+  // ----------------------------------------------------------
+  // UI STATE
+  // ----------------------------------------------------------
 
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
 
+  // ----------------------------------------------------------
+  // HANDLE ALREADY LOGGED-IN STUDENT
+  // ----------------------------------------------------------
+
   useEffect(() => {
-    if (isAuthenticated) {
+    if (
+      authenticationChecked &&
+      isAuthenticated
+    ) {
       navigate("/student/dashboard", {
         replace: true,
       });
     }
-  }, [isAuthenticated, navigate]);
+  }, [
+    authenticationChecked,
+    isAuthenticated,
+    navigate,
+  ]);
+
+  // ----------------------------------------------------------
+  // HANDLE INPUT CHANGE
+  // ----------------------------------------------------------
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const {
+      name,
+      value,
+    } = event.target;
 
     setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
 
-    setErrors((previous) => ({
-      ...previous,
-      [name]: "",
-    }));
+    // Clear old messages when user starts typing
+    if (error) {
+      setError("");
+    }
 
-    setServerError("");
+    if (success) {
+      setSuccess("");
+    }
   };
+
+  // ----------------------------------------------------------
+  // VALIDATE FORM
+  // ----------------------------------------------------------
+
+  const validateForm = () => {
+    const email = formData.email.trim();
+    const password = formData.password;
+
+    if (!email) {
+      return "Please enter your email address.";
+    }
+
+    if (!password) {
+      return "Please enter your password.";
+    }
+
+    if (password.length < 1) {
+      return "Please enter your password.";
+    }
+
+    return "";
+  };
+
+  // ----------------------------------------------------------
+  // HANDLE LOGIN
+  // ----------------------------------------------------------
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    setServerError("");
+    setError("");
+    setSuccess("");
 
-    const validationErrors =
-      validateLoginForm(formData);
+    const validationError = validateForm();
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
-      setLoading(true);
+      const email = formData.email.trim().toLowerCase();
+      const password = formData.password;
 
-      await login(
-        formData.email.trim().toLowerCase(),
-        formData.password
+      // ------------------------------------------------------
+      // LOGIN THROUGH AUTH CONTEXT
+      // ------------------------------------------------------
+
+      const result = await login(
+        email,
+        password
       );
 
-      navigate("/student/dashboard", {
-        replace: true,
-      });
-    } catch (errorObject) {
-      const detail =
-        errorObject?.response?.data?.detail;
+      console.log(
+        "Student login successful:",
+        result
+      );
 
-      if (Array.isArray(detail)) {
-        setServerError(
-          detail
-            .map((item) => item?.msg)
-            .join(", ")
-        );
-      } else {
-        setServerError(
-          detail ||
-            errorObject?.message ||
-            "Invalid email or password."
-        );
+      setSuccess(
+        "Login successful. Redirecting..."
+      );
+
+      // ------------------------------------------------------
+      // SUPPORT RETURN URL
+      // ------------------------------------------------------
+
+      const from =
+        location.state?.from?.pathname ||
+        "/student/dashboard";
+
+      setTimeout(() => {
+        navigate(from, {
+          replace: true,
+        });
+      }, 300);
+
+    } catch (err) {
+      console.error(
+        "Student login error:",
+        err
+      );
+
+      let message =
+        "Unable to login. Please try again.";
+
+      // ------------------------------------------------------
+      // AXIOS / BACKEND ERROR
+      // ------------------------------------------------------
+
+      if (err?.response) {
+        const status =
+          err.response.status;
+
+        const detail =
+          err.response.data?.detail;
+
+        if (typeof detail === "string") {
+          message = detail;
+        } else if (
+          Array.isArray(detail)
+        ) {
+          message = detail
+            .map((item) => {
+              if (
+                typeof item === "string"
+              ) {
+                return item;
+              }
+
+              if (item?.msg) {
+                return item.msg;
+              }
+
+              return "Invalid request.";
+            })
+            .join(", ");
+        } else if (
+          err.response.data?.message
+        ) {
+          message =
+            err.response.data.message;
+        }
+
+        // ----------------------------------------------------
+        // SPECIFIC HTTP STATUS MESSAGES
+        // ----------------------------------------------------
+
+        if (
+          status === 401 &&
+          !detail
+        ) {
+          message =
+            "Invalid email or password.";
+        }
+
+        if (
+          status === 403 &&
+          !detail
+        ) {
+          message =
+            "Your account is not allowed to login yet.";
+        }
+
+        if (status === 422) {
+          message =
+            "Please enter a valid email address and password.";
+        }
+
+        if (status >= 500) {
+          message =
+            "Server error. Please try again later.";
+        }
+
+      } else if (err?.request) {
+        message =
+          "Unable to connect to the server. Please check your internet connection and try again.";
+
+      } else if (err?.message) {
+        message = err.message;
       }
-    } finally {
-      setLoading(false);
+
+      setError(message);
     }
   };
 
-  return (
-    <div className="auth-page">
-      <div className="auth-container login-container">
-        <div className="auth-header">
-          <div className="login-icon">🎓</div>
+  // ----------------------------------------------------------
+  // LOADING STATE
+  // ----------------------------------------------------------
 
-          <span className="auth-badge">
-            Student Portal
-          </span>
-
-          <h1>Student Login</h1>
-
-          <p>
-            Login using your registered email address
-            and password.
-          </p>
-        </div>
-
-        {successMessage && (
-          <div className="success-message">
-            <span>✓</span>
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {serverError && (
-          <div className="error-message">
-            <span>⚠️</span>
-            <span>{serverError}</span>
-          </div>
-        )}
-
-        <form
-          className="auth-form"
-          onSubmit={handleSubmit}
-        >
-          <div className="form-group">
-            <label htmlFor="email">
-              📧 Email Address
-            </label>
-
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter registered email"
-              autoComplete="email"
-              className={
-                errors.email ? "input-error" : ""
-              }
-            />
-
-            {errors.email && (
-              <small className="field-error">
-                {errors.email}
-              </small>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">
-              🔐 Password
-            </label>
-
-            <div className="password-wrapper">
-              <input
-                id="password"
-                name="password"
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                className={
-                  errors.password
-                    ? "input-error"
-                    : ""
-                }
-              />
-
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() =>
-                  setShowPassword(
-                    (previous) => !previous
-                  )
-                }
-              >
-                {showPassword ? "🙈" : "👁️"}
-              </button>
+  if (!authenticationChecked) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="auth-loading">
+              Checking authentication...
             </div>
-
-            {errors.password && (
-              <small className="field-error">
-                {errors.password}
-              </small>
-            )}
           </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-block btn-lg"
-            disabled={loading}
-          >
-            {loading
-              ? "Logging in..."
-              : "Login"}
-          </button>
-        </form>
-
-        <div className="login-security-note">
-          <span>🔒</span>
-
-          <p>
-            Your account is protected using secure
-            authentication.
-          </p>
-        </div>
-
-        <div className="auth-footer">
-          <p>
-            Don't have an account?{" "}
-            <Link to="/register">
-              Register as Student
-            </Link>
-          </p>
-        </div>
-
-        <div className="admin-login-link">
-          <Link to="/admin/login">
-            Administrator Login →
-          </Link>
         </div>
       </div>
+    );
+  }
+
+  // ----------------------------------------------------------
+  // RENDER
+  // ----------------------------------------------------------
+
+  return (
+    <div className="auth-page">
+
+      <div className="auth-container">
+
+        <div className="auth-card">
+
+          {/* ==================================================
+              HEADER
+          ================================================== */}
+
+          <div className="auth-header">
+
+            <div className="auth-logo">
+              🎓
+            </div>
+
+            <h1>
+              Student Login
+            </h1>
+
+            <p>
+              Login using your registered
+              email address and password.
+            </p>
+
+          </div>
+
+          {/* ==================================================
+              ERROR
+          ================================================== */}
+
+          {error && (
+            <div
+              className="auth-message auth-error"
+              role="alert"
+            >
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* ==================================================
+              SUCCESS
+          ================================================== */}
+
+          {success && (
+            <div
+              className="auth-message auth-success"
+              role="status"
+            >
+              <span>✅</span>
+              <span>{success}</span>
+            </div>
+          )}
+
+          {/* ==================================================
+              LOGIN FORM
+          ================================================== */}
+
+          <form
+            onSubmit={handleSubmit}
+            className="auth-form"
+            noValidate
+          >
+
+            {/* =================================================
+                EMAIL
+            ================================================= */}
+
+            <div className="form-group">
+
+              <label htmlFor="email">
+                📧 Email Address
+              </label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="student@gmail.com"
+                autoComplete="email"
+                disabled={loading}
+                required
+              />
+
+            </div>
+
+            {/* =================================================
+                PASSWORD
+            ================================================= */}
+
+            <div className="form-group">
+
+              <label htmlFor="password">
+                🔐 Password
+              </label>
+
+              <div className="password-wrapper">
+
+                <input
+                  id="password"
+                  name="password"
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  disabled={loading}
+                  required
+                />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword(
+                      (previous) =>
+                        !previous
+                    )
+                  }
+                  disabled={loading}
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword
+                    ? "🙈"
+                    : "👁️"}
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* =================================================
+                SUBMIT
+            ================================================= */}
+
+            <button
+              type="submit"
+              className="auth-submit-button"
+              disabled={loading}
+            >
+
+              {loading ? (
+                <>
+                  <span className="button-spinner">
+                    ⏳
+                  </span>
+
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  🔐 Sign In
+                </>
+              )}
+
+            </button>
+
+          </form>
+
+          {/* ==================================================
+              REGISTRATION LINK
+          ================================================== */}
+
+          <div className="auth-footer">
+
+            <p>
+              Don't have an account?
+            </p>
+
+            <Link
+              to="/register"
+              className="auth-link"
+            >
+              Create Student Account
+            </Link>
+
+          </div>
+
+          {/* ==================================================
+              HOME LINK
+          ================================================== */}
+
+          <div className="auth-home-link">
+
+            <Link to="/">
+              ← Back to Home
+            </Link>
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   );
 }
