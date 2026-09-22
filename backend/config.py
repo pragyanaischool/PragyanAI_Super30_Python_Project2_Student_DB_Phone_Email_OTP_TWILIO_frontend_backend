@@ -4,7 +4,7 @@ load_dotenv()
 class Settings:
     DATABASE_URL=os.getenv('DATABASE_URL','')
     SECRET_KEY=os.getenv('SECRET_KEY','change-me')
-    FRONTEND_URL=os.getenv('FRONTEND_URL','http://localhost:5173')
+    FRONTEND_URL=os.getenv('FRONTEND_URL','https://pragyanai-student-sql-email-phone.netlify.app/')
     EMAIL_ADDRESS=os.getenv('EMAIL_ADDRESS','')
     EMAIL_APP_PASSWORD=os.getenv('EMAIL_APP_PASSWORD','')
     TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID','')
