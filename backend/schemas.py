@@ -16,7 +16,7 @@ from pydantic import (
 
 
 # ============================================================
-# BASE ORM SCHEMA
+# ORM BASE
 # ============================================================
 
 class ORMBaseModel(BaseModel):
@@ -122,21 +122,7 @@ class StudentRegister(BaseModel):
         return value
 
 
-# ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-#
-# Existing auth.py expects:
-#
-# Register
-#
-# New code uses:
-#
-# StudentRegister
-#
-# Both now point to the same schema.
-# ============================================================
-
+# Existing auth.py compatibility
 Register = StudentRegister
 
 
@@ -224,9 +210,7 @@ class StudentUpdate(BaseModel):
 # STUDENT RESPONSE
 # ============================================================
 
-class StudentResponse(
-    ORMBaseModel
-):
+class StudentResponse(ORMBaseModel):
 
     id: int
 
@@ -261,24 +245,12 @@ class StudentResponse(
     updated_at: datetime
 
 
-# ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-#
-# Existing auth.py expects:
-#
-# StudentOut
-#
-# New code uses:
-#
-# StudentResponse
-# ============================================================
-
+# Existing auth.py compatibility
 StudentOut = StudentResponse
 
 
 # ============================================================
-# LOGIN REQUEST
+# LOGIN
 # ============================================================
 
 class LoginRequest(BaseModel):
@@ -292,24 +264,12 @@ class LoginRequest(BaseModel):
     )
 
 
-# ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-#
-# Existing auth.py expects:
-#
-# Login
-#
-# New code uses:
-#
-# LoginRequest
-# ============================================================
-
+# Existing auth.py compatibility
 Login = LoginRequest
 
 
 # ============================================================
-# TOKEN RESPONSE
+# JWT TOKEN
 # ============================================================
 
 class TokenResponse(BaseModel):
@@ -319,11 +279,53 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+# Existing auth.py compatibility
+Token = TokenResponse
+
+
 # ============================================================
-# COMPATIBILITY ALIAS
+# EMAIL OTP
 # ============================================================
 
-Token = TokenResponse
+class OTP(BaseModel):
+    """
+    Compatibility schema used by existing otp.py.
+
+    Expected request:
+
+    {
+        "email": "student@gmail.com",
+        "otp": "123456"
+    }
+    """
+
+    email: EmailStr
+
+    otp: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+    )
+
+    @field_validator("otp")
+    @classmethod
+    def validate_otp(cls, value: str):
+
+        value = value.strip()
+
+        if not value.isdigit():
+
+            raise ValueError(
+                "OTP must contain only numbers."
+            )
+
+        if len(value) != 6:
+
+            raise ValueError(
+                "OTP must contain exactly 6 digits."
+            )
+
+        return value
 
 
 # ============================================================
@@ -359,12 +361,6 @@ class OTPVerifyRequest(BaseModel):
 
             raise ValueError(
                 "OTP must contain only numbers."
-            )
-
-        if len(value) != 6:
-
-            raise ValueError(
-                "OTP must contain exactly 6 digits."
             )
 
         return value
@@ -474,7 +470,7 @@ class AdminDecision(BaseModel):
 
 
 # ============================================================
-# GENERIC MESSAGE RESPONSE
+# MESSAGE
 # ============================================================
 
 class MessageResponse(BaseModel):
@@ -484,10 +480,7 @@ class MessageResponse(BaseModel):
     success: bool = True
 
 
-# ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-
+# Existing auth.py / otp.py compatibility
 Message = MessageResponse
 
 
