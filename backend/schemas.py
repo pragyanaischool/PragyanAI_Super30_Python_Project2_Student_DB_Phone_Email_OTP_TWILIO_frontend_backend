@@ -20,6 +20,9 @@ from pydantic import (
 # ============================================================
 
 class ORMBaseModel(BaseModel):
+    """
+    Base Pydantic model for SQLAlchemy ORM objects.
+    """
 
     model_config = ConfigDict(
         from_attributes=True
@@ -88,6 +91,10 @@ class StudentRegister(BaseModel):
         max_length=128,
     )
 
+    # --------------------------------------------------------
+    # TEXT VALIDATION
+    # --------------------------------------------------------
+
     @field_validator(
         "full_name",
         "college_name",
@@ -95,31 +102,45 @@ class StudentRegister(BaseModel):
         "branch",
     )
     @classmethod
-    def clean_text(cls, value: str):
+    def clean_text(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value:
-
             raise ValueError(
                 "This field cannot be empty."
             )
 
         return value
 
+    # --------------------------------------------------------
+    # PHONE VALIDATION
+    # --------------------------------------------------------
+
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str):
+    def clean_phone(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value:
-
             raise ValueError(
                 "Phone number is required."
             )
 
         return value
+
+    # --------------------------------------------------------
+    # EMAIL NORMALIZATION
+    # --------------------------------------------------------
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> EmailStr:
+
+        return EmailStr(
+            str(value).strip().lower()
+        )
 
 
 # ============================================================
@@ -183,6 +204,10 @@ class StudentUpdate(BaseModel):
         max_length=30,
     )
 
+    # --------------------------------------------------------
+    # TEXT VALIDATION
+    # --------------------------------------------------------
+
     @field_validator(
         "full_name",
         "college_name",
@@ -193,7 +218,7 @@ class StudentUpdate(BaseModel):
     def clean_optional_text(
         cls,
         value: Optional[str],
-    ):
+    ) -> Optional[str]:
 
         if value is None:
             return None
@@ -201,9 +226,31 @@ class StudentUpdate(BaseModel):
         value = value.strip()
 
         if not value:
-
             raise ValueError(
                 "This field cannot be empty."
+            )
+
+        return value
+
+    # --------------------------------------------------------
+    # PHONE VALIDATION
+    # --------------------------------------------------------
+
+    @field_validator("phone")
+    @classmethod
+    def clean_optional_phone(
+        cls,
+        value: Optional[str],
+    ) -> Optional[str]:
+
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Phone number is required."
             )
 
         return value
@@ -239,11 +286,11 @@ class StudentResponse(ORMBaseModel):
 
     email: EmailStr
 
-    email_verified: bool
+    email_verified: bool = False
 
-    phone_verified: bool
+    phone_verified: bool = False
 
-    approval_status: str
+    approval_status: str = "PENDING"
 
     rejection_reason: Optional[str] = None
 
@@ -269,6 +316,35 @@ class LoginRequest(BaseModel):
         min_length=1,
         max_length=128,
     )
+
+    # --------------------------------------------------------
+    # EMAIL NORMALIZATION
+    # --------------------------------------------------------
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> EmailStr:
+
+        return EmailStr(
+            str(value).strip().lower()
+        )
+
+    # --------------------------------------------------------
+    # PASSWORD VALIDATION
+    # --------------------------------------------------------
+
+    @field_validator("password")
+    @classmethod
+    def clean_password(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Password is required."
+            )
+
+        return value
 
 
 # Existing auth.py compatibility
@@ -304,20 +380,26 @@ class OTP(BaseModel):
         max_length=6,
     )
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> EmailStr:
+
+        return EmailStr(
+            str(value).strip().lower()
+        )
+
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str):
+    def validate_otp(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value.isdigit():
-
             raise ValueError(
                 "OTP must contain only numbers."
             )
 
         if len(value) != 6:
-
             raise ValueError(
                 "OTP must contain exactly 6 digits."
             )
@@ -332,6 +414,14 @@ class OTP(BaseModel):
 class OTPRequest(BaseModel):
 
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> EmailStr:
+
+        return EmailStr(
+            str(value).strip().lower()
+        )
 
 
 # ============================================================
@@ -348,23 +438,35 @@ class OTPVerifyRequest(BaseModel):
         max_length=6,
     )
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> EmailStr:
+
+        return EmailStr(
+            str(value).strip().lower()
+        )
+
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str):
+    def validate_otp(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value.isdigit():
-
             raise ValueError(
                 "OTP must contain only numbers."
+            )
+
+        if len(value) != 6:
+            raise ValueError(
+                "OTP must contain exactly 6 digits."
             )
 
         return value
 
 
 # ============================================================
-# PHONE OTP
+# PHONE OTP REQUEST
 # ============================================================
 
 class PhoneOTPRequest(BaseModel):
@@ -377,18 +479,21 @@ class PhoneOTPRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str):
+    def clean_phone(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value:
-
             raise ValueError(
                 "Phone number is required."
             )
 
         return value
 
+
+# ============================================================
+# PHONE OTP VERIFY
+# ============================================================
 
 class PhoneOTPVerifyRequest(BaseModel):
 
@@ -406,12 +511,11 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str):
+    def clean_phone(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value:
-
             raise ValueError(
                 "Phone number is required."
             )
@@ -420,12 +524,11 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str):
+    def validate_otp(cls, value: str) -> str:
 
         value = value.strip()
 
         if not value.isdigit():
-
             raise ValueError(
                 "OTP must contain only numbers."
             )
@@ -449,7 +552,7 @@ class AdminDecision(BaseModel):
     def clean_reason(
         cls,
         value: Optional[str],
-    ):
+    ) -> Optional[str]:
 
         if value is None:
             return None
