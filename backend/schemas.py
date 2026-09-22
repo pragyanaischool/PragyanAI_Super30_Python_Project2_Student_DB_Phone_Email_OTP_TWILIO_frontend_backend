@@ -88,6 +88,10 @@ class StudentRegister(BaseModel):
         max_length=128,
     )
 
+    # --------------------------------------------------------
+    # TEXT VALIDATION
+    # --------------------------------------------------------
+
     @field_validator(
         "full_name",
         "college_name",
@@ -109,6 +113,10 @@ class StudentRegister(BaseModel):
 
         return value
 
+    # --------------------------------------------------------
+    # PHONE VALIDATION
+    # --------------------------------------------------------
+
     @field_validator("phone")
     @classmethod
     def clean_phone(
@@ -124,17 +132,6 @@ class StudentRegister(BaseModel):
             )
 
         return value
-
-    @field_validator("email")
-    @classmethod
-    def normalize_email(
-        cls,
-        value: EmailStr,
-    ) -> EmailStr:
-
-        return EmailStr(
-            str(value).strip().lower()
-        )
 
 
 # ============================================================
@@ -242,6 +239,7 @@ class StudentUpdate(BaseModel):
         return value
 
 
+# Existing students.py compatibility
 UpdateStudent = StudentUpdate
 
 
@@ -284,6 +282,7 @@ class StudentResponse(ORMBaseModel):
     updated_at: datetime
 
 
+# Existing routers compatibility
 StudentOut = StudentResponse
 
 
@@ -300,17 +299,6 @@ class LoginRequest(BaseModel):
         min_length=1,
         max_length=128,
     )
-
-    @field_validator("email")
-    @classmethod
-    def normalize_email(
-        cls,
-        value: EmailStr,
-    ) -> EmailStr:
-
-        return EmailStr(
-            str(value).strip().lower()
-        )
 
     @field_validator("password")
     @classmethod
@@ -329,6 +317,7 @@ class LoginRequest(BaseModel):
         return value
 
 
+# Existing auth.py compatibility
 Login = LoginRequest
 
 
@@ -343,6 +332,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+# Existing auth.py compatibility
 Token = TokenResponse
 
 
@@ -360,17 +350,6 @@ class OTP(BaseModel):
         max_length=6,
     )
 
-    @field_validator("email")
-    @classmethod
-    def normalize_email(
-        cls,
-        value: EmailStr,
-    ) -> EmailStr:
-
-        return EmailStr(
-            str(value).strip().lower()
-        )
-
     @field_validator("otp")
     @classmethod
     def validate_otp(
@@ -381,11 +360,13 @@ class OTP(BaseModel):
         value = value.strip()
 
         if not value.isdigit():
+
             raise ValueError(
                 "OTP must contain only numbers."
             )
 
         if len(value) != 6:
+
             raise ValueError(
                 "OTP must contain exactly 6 digits."
             )
@@ -400,17 +381,6 @@ class OTP(BaseModel):
 class OTPRequest(BaseModel):
 
     email: EmailStr
-
-    @field_validator("email")
-    @classmethod
-    def normalize_email(
-        cls,
-        value: EmailStr,
-    ) -> EmailStr:
-
-        return EmailStr(
-            str(value).strip().lower()
-        )
 
 
 # ============================================================
@@ -427,17 +397,6 @@ class OTPVerifyRequest(BaseModel):
         max_length=6,
     )
 
-    @field_validator("email")
-    @classmethod
-    def normalize_email(
-        cls,
-        value: EmailStr,
-    ) -> EmailStr:
-
-        return EmailStr(
-            str(value).strip().lower()
-        )
-
     @field_validator("otp")
     @classmethod
     def validate_otp(
@@ -448,11 +407,13 @@ class OTPVerifyRequest(BaseModel):
         value = value.strip()
 
         if not value.isdigit():
+
             raise ValueError(
                 "OTP must contain only numbers."
             )
 
         if len(value) != 6:
+
             raise ValueError(
                 "OTP must contain exactly 6 digits."
             )
@@ -482,6 +443,7 @@ class PhoneOTPRequest(BaseModel):
         value = value.strip()
 
         if not value:
+
             raise ValueError(
                 "Phone number is required."
             )
@@ -517,6 +479,7 @@ class PhoneOTPVerifyRequest(BaseModel):
         value = value.strip()
 
         if not value:
+
             raise ValueError(
                 "Phone number is required."
             )
@@ -533,6 +496,7 @@ class PhoneOTPVerifyRequest(BaseModel):
         value = value.strip()
 
         if not value.isdigit():
+
             raise ValueError(
                 "OTP must contain only numbers."
             )
@@ -580,6 +544,7 @@ class MessageResponse(BaseModel):
     success: bool = True
 
 
+# Existing auth.py / otp.py compatibility
 Message = MessageResponse
 
 
