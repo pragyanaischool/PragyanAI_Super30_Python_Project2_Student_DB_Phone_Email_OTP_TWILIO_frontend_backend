@@ -1,0 +1,579 @@
+/* =========================================================
+   STUDENT DASHBOARD
+   ========================================================= */
+
+.student-dashboard {
+  min-height:
+    calc(100vh - var(--navbar-height));
+
+  padding:
+    35px 24px 60px;
+
+  background:
+    #f8fafc;
+}
+
+.student-dashboard-container {
+  width:
+    100%;
+
+  max-width:
+    1180px;
+
+  margin:
+    0 auto;
+}
+
+.student-welcome {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    20px;
+
+  margin-bottom:
+    25px;
+
+  padding:
+    25px;
+
+  color:
+    white;
+
+  border-radius:
+    18px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1d4ed8,
+      #2563eb,
+      #7c3aed
+    );
+
+  box-shadow:
+    0 12px 30px
+    rgba(37, 99, 235, 0.18);
+}
+
+.student-welcome h1 {
+  margin-bottom:
+    6px;
+
+  color:
+    white;
+
+  font-size:
+    26px;
+}
+
+.student-welcome p {
+  margin:
+    0;
+
+  color:
+    rgba(255, 255, 255, 0.8);
+
+  font-size:
+    13px;
+}
+
+.student-welcome-avatar {
+  width:
+    60px;
+
+  height:
+    60px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  flex-shrink:
+    0;
+
+  border:
+    2px solid
+    rgba(255, 255, 255, 0.35);
+
+  border-radius:
+    50%;
+
+  color:
+    white;
+
+  background:
+    rgba(255, 255, 255, 0.14);
+
+  font-size:
+    23px;
+
+  font-weight:
+    800;
+}
+
+/* =========================================================
+   STATUS PANEL
+   ========================================================= */
+
+.student-status-panel {
+  margin-bottom:
+    22px;
+
+  padding:
+    20px;
+
+  background:
+    white;
+
+  border:
+    1px solid var(--border);
+
+  border-radius:
+    14px;
+
+  box-shadow:
+    var(--shadow-sm);
+}
+
+.student-status-header {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    15px;
+
+  margin-bottom:
+    16px;
+}
+
+.student-status-header h2 {
+  margin:
+    0;
+
+  font-size:
+    17px;
+}
+
+.student-verification-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap:
+    12px;
+}
+
+.student-verification-card {
+  padding:
+    16px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius:
+    10px;
+
+  background:
+    var(--background);
+}
+
+.student-verification-card-header {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  margin-bottom:
+    8px;
+}
+
+.student-verification-card-title {
+  color:
+    var(--text-secondary);
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+}
+
+.student-verification-icon {
+  width:
+    28px;
+
+  height:
+    28px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  border-radius:
+    8px;
+
+  font-size:
+    13px;
+}
+
+.student-verification-card.verified
+  .student-verification-icon {
+  color:
+    var(--success);
+
+  background:
+    var(--success-light);
+}
+
+.student-verification-card.pending
+  .student-verification-icon {
+  color:
+    var(--warning);
+
+  background:
+    var(--warning-light);
+}
+
+.student-verification-value {
+  font-size:
+    13px;
+
+  font-weight:
+    700;
+}
+
+/* =========================================================
+   DASHBOARD GRID
+   ========================================================= */
+
+.student-dashboard-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    2fr 1fr;
+
+  gap:
+    20px;
+}
+
+.student-dashboard-card {
+  padding:
+    22px;
+
+  background:
+    white;
+
+  border:
+    1px solid var(--border);
+
+  border-radius:
+    14px;
+
+  box-shadow:
+    var(--shadow-sm);
+}
+
+.student-dashboard-card-header {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    15px;
+
+  margin-bottom:
+    18px;
+}
+
+.student-dashboard-card-header h2 {
+  margin:
+    0;
+
+  font-size:
+    17px;
+}
+
+.student-dashboard-card-header a {
+  color:
+    var(--primary);
+
+  font-size:
+    11px;
+
+  font-weight:
+    700;
+}
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+.student-profile-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap:
+    12px;
+}
+
+.student-profile-field {
+  padding:
+    13px;
+
+  border:
+    1px solid var(--border-light);
+
+  border-radius:
+    9px;
+
+  background:
+    #fafafa;
+}
+
+.student-profile-field-label {
+  display:
+    block;
+
+  margin-bottom:
+    4px;
+
+  color:
+    var(--text-muted);
+
+  font-size:
+    10px;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    0.3px;
+}
+
+.student-profile-field-value {
+  color:
+    var(--dark);
+
+  font-size:
+    12px;
+
+  font-weight:
+    600;
+
+  word-break:
+    break-word;
+}
+
+/* =========================================================
+   QUICK ACTIONS
+   ========================================================= */
+
+.student-quick-actions {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap:
+    10px;
+}
+
+.student-quick-action {
+  padding:
+    15px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius:
+    10px;
+
+  background:
+    white;
+
+  transition:
+    var(--transition);
+}
+
+.student-quick-action:hover {
+  border-color:
+    #bfdbfe;
+
+  background:
+    var(--primary-light);
+
+  transform:
+    translateY(-1px);
+}
+
+.student-quick-action-icon {
+  margin-bottom:
+    8px;
+
+  font-size:
+    20px;
+}
+
+.student-quick-action-title {
+  margin-bottom:
+    2px;
+
+  color:
+    var(--dark);
+
+  font-size:
+    12px;
+
+  font-weight:
+    700;
+}
+
+.student-quick-action-description {
+  color:
+    var(--text-muted);
+
+  font-size:
+    10px;
+}
+
+/* =========================================================
+   PROFILE PAGE
+   ========================================================= */
+
+.student-profile-page {
+  min-height:
+    calc(100vh - var(--navbar-height));
+
+  padding:
+    35px 24px 60px;
+
+  background:
+    #f8fafc;
+}
+
+.student-profile-container {
+  width:
+    100%;
+
+  max-width:
+    1000px;
+
+  margin:
+    0 auto;
+}
+
+.student-profile-header {
+  margin-bottom:
+    22px;
+}
+
+.student-profile-header h1 {
+  margin-bottom:
+    5px;
+
+  font-size:
+    26px;
+}
+
+.student-profile-header p {
+  margin:
+    0;
+
+  color:
+    var(--text-secondary);
+
+  font-size:
+    13px;
+}
+
+.student-profile-form-card {
+  padding:
+    25px;
+
+  background:
+    white;
+
+  border:
+    1px solid var(--border);
+
+  border-radius:
+    16px;
+
+  box-shadow:
+    var(--shadow-sm);
+}
+
+.student-profile-form-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap:
+    0 18px;
+}
+
+.student-profile-form-full {
+  grid-column:
+    1 / -1;
+}
+
+.student-profile-actions {
+  display:
+    flex;
+
+  justify-content:
+    flex-end;
+
+  gap:
+    10px;
+
+  margin-top:
+    10px;
+
+  padding-top:
+    20px;
+
+  border-top:
+    1px solid var(--border-light);
+}
