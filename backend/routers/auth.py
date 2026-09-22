@@ -1,6 +1,4 @@
-# backend/routers/auth.py
-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -40,7 +38,7 @@ def create_access_token(data: dict):
 
     to_encode = data.copy()
 
-    expire = datetime.utcnow() + timedelta(
+    expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
 
@@ -65,6 +63,9 @@ def get_current_student(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
+    """
+    Decode JWT and return the currently authenticated student.
+    """
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -75,7 +76,6 @@ def get_current_student(
     )
 
     try:
-
         payload = jwt.decode(
             token,
             settings.secret_key,
@@ -94,7 +94,6 @@ def get_current_student(
         ValueError,
         TypeError,
     ):
-
         raise credentials_exception
 
     student = (
@@ -122,6 +121,25 @@ def register_student(
     student_data: Register,
     db: Session = Depends(get_db),
 ):
+    """
+    Register a new student.
+    """
+
+    # --------------------------------------------------------
+    # Normalize email
+    # --------------------------------------------------------
+
+    email = str(
+        student_data.email
+    ).strip().lower()
+
+    # --------------------------------------------------------
+    # Normalize phone
+    # --------------------------------------------------------
+
+    phone = str(
+        student_data.phone
+    ).strip()
 
     # --------------------------------------------------------
     # Check duplicate email
@@ -129,14 +147,13 @@ def register_student(
 
     existing_email = (
         db.query(Student)
-        .filter(Student.email == student_data.email)
+        .filter(Student.email == email)
         .first()
     )
 
     if existing_email:
-
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered.",
         )
 
@@ -146,14 +163,13 @@ def register_student(
 
     existing_phone = (
         db.query(Student)
-        .filter(Student.phone == student_data.phone)
+        .filter(Student.phone == phone)
         .first()
     )
 
     if existing_phone:
-
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Phone number already registered.",
         )
 
@@ -169,8 +185,8 @@ def register_student(
         tenth_cgpa=student_data.tenth_cgpa,
         twelfth_cgpa=student_data.twelfth_cgpa,
         be_cgpa=student_data.be_cgpa,
-        phone=student_data.phone,
-        email=str(student_data.email).lower(),
+        phone=phone,
+        email=email,
         password_hash=hash_password(
             student_data.password
         ),
@@ -179,9 +195,23 @@ def register_student(
         approval_status="PENDING",
     )
 
+    # --------------------------------------------------------
+    # Save
+    # --------------------------------------------------------
+
     db.add(student)
-    db.commit()
-    db.refresh(student)
+
+    try:
+        db.commit()
+        db.refresh(student)
+
+    except Exception:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to create student registration.",
+        )
 
     return student
 
@@ -198,8 +228,56 @@ def login_student(
     login_data: Login,
     db: Session = Depends(get_db),
 ):
+    """
+    Student login using JSON:
 
-    email = str(login_data.email).lower()
+    {
+        "email": "student@gmail.com",
+        "password": "Student@123"
+    }
+    """
+
+    # --------------------------------------------------------
+    # Validate request object
+    # --------------------------------------------------------
+
+    if login_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Login information is required.",
+        )
+
+    # --------------------------------------------------------
+    # Normalize email
+    # --------------------------------------------------------
+
+    email = str(
+        login_data.email
+    ).strip().lower()
+
+    password = str(
+        login_data.password
+    )
+
+    # --------------------------------------------------------
+    # Basic validation
+    # --------------------------------------------------------
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address is required.",
+        )
+
+    if not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required.",
+        )
+
+    # --------------------------------------------------------
+    # Find student
+    # --------------------------------------------------------
 
     student = (
         db.query(Student)
@@ -212,20 +290,34 @@ def login_student(
     # --------------------------------------------------------
 
     if student is None:
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
-    if not verify_password(
-        login_data.password,
-        student.password_hash,
-    ):
+    # --------------------------------------------------------
+    # Verify password
+    # --------------------------------------------------------
 
+    try:
+        password_valid = verify_password(
+            password,
+            student.password_hash,
+        )
+
+    except Exception:
+        password_valid = False
+
+    if not password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
         )
 
     # --------------------------------------------------------
@@ -233,9 +325,8 @@ def login_student(
     # --------------------------------------------------------
 
     if not student.email_verified:
-
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email before login.",
         )
 
@@ -244,9 +335,8 @@ def login_student(
     # --------------------------------------------------------
 
     if not student.phone_verified:
-
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your phone number before login.",
         )
 
@@ -254,12 +344,15 @@ def login_student(
     # Admin approval
     # --------------------------------------------------------
 
-    if student.approval_status != "APPROVED":
+    approval_status = str(
+        student.approval_status or ""
+    ).strip().upper()
 
-        if student.approval_status == "REJECTED":
+    if approval_status != "APPROVED":
 
+        if approval_status == "REJECTED":
             raise HTTPException(
-                status_code=403,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
                     "Your registration has been rejected. "
                     "Please contact PragyanAI administration."
@@ -267,7 +360,7 @@ def login_student(
             )
 
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "Your account is awaiting admin approval."
             ),
@@ -284,6 +377,10 @@ def login_student(
             "role": "student",
         }
     )
+
+    # --------------------------------------------------------
+    # Return token
+    # --------------------------------------------------------
 
     return {
         "access_token": access_token,
@@ -304,6 +401,9 @@ def get_me(
         get_current_student
     ),
 ):
+    """
+    Return authenticated student.
+    """
 
     return current_student
 
@@ -317,6 +417,10 @@ def get_me(
     response_model=Message,
 )
 def logout():
+    """
+    JWT logout is handled client-side by removing
+    the stored token.
+    """
 
     return {
         "message": (
@@ -325,4 +429,5 @@ def logout():
         ),
         "success": True,
     }
+
     
