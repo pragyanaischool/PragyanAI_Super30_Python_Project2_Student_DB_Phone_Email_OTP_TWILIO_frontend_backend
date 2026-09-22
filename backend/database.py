@@ -5,11 +5,8 @@
 
 import os
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    sessionmaker,
-)
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 # ============================================================
@@ -23,22 +20,31 @@ if not DATABASE_URL:
         "DATABASE_URL environment variable is not configured."
     )
 
+# Remove accidental whitespace
+DATABASE_URL = DATABASE_URL.strip()
+
+# Remove accidental surrounding quotes
+if (
+    len(DATABASE_URL) >= 2
+    and DATABASE_URL[0] == '"'
+    and DATABASE_URL[-1] == '"'
+):
+    DATABASE_URL = DATABASE_URL[1:-1].strip()
+
+if (
+    len(DATABASE_URL) >= 2
+    and DATABASE_URL[0] == "'"
+    and DATABASE_URL[-1] == "'"
+):
+    DATABASE_URL = DATABASE_URL[1:-1].strip()
+
 
 # ============================================================
-# RENDER POSTGRESQL COMPATIBILITY
+# POSTGRESQL URL NORMALIZATION
 # ============================================================
-
-# Render PostgreSQL may provide:
-#
-# postgresql://...
-#
-# SQLAlchemy with psycopg uses:
-#
-# postgresql+psycopg://...
-#
-# Convert automatically when required.
 
 if DATABASE_URL.startswith("postgres://"):
+
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
         "postgresql+psycopg://",
@@ -46,10 +52,73 @@ if DATABASE_URL.startswith("postgres://"):
     )
 
 elif DATABASE_URL.startswith("postgresql://"):
+
     DATABASE_URL = DATABASE_URL.replace(
         "postgresql://",
         "postgresql+psycopg://",
         1,
+    )
+
+
+# ============================================================
+# SAFE DATABASE CONFIGURATION LOG
+# ============================================================
+
+try:
+
+    # Never print the password.
+    if "://" in DATABASE_URL:
+
+        scheme, remainder = DATABASE_URL.split(
+            "://",
+            1,
+        )
+
+        if "@" in remainder:
+
+            credentials, host_part = remainder.split(
+                "@",
+                1,
+            )
+
+            if ":" in credentials:
+
+                username = credentials.split(
+                    ":",
+                    1,
+                )[0]
+
+                print(
+                    "Database configuration detected: "
+                    f"{scheme}://{username}:****@{host_part}"
+                )
+
+            else:
+
+                print(
+                    "Database configuration detected: "
+                    f"{scheme}://****@{host_part}"
+                )
+
+        else:
+
+            print(
+                "Database configuration detected: "
+                f"{scheme}://****"
+            )
+
+    else:
+
+        print(
+            "Database configuration detected: "
+            "Invalid DATABASE_URL format"
+        )
+
+except Exception:
+
+    print(
+        "Database configuration detected: "
+        "Unable to display configuration safely"
     )
 
 
@@ -89,18 +158,20 @@ class Base(DeclarativeBase):
 
 def get_db():
     """
-    Provides a database session for FastAPI requests.
+    Provide a SQLAlchemy database session.
 
-    The session is always closed after the request,
-    even when an exception occurs.
+    The session is automatically closed after
+    the request completes.
     """
 
     db = SessionLocal()
 
     try:
+
         yield db
 
     finally:
+
         db.close()
 
 
@@ -110,19 +181,21 @@ def get_db():
 
 def test_database_connection():
     """
-    Test whether the configured database is reachable.
+    Test the PostgreSQL database connection.
     """
-
-    from sqlalchemy import text
 
     db = SessionLocal()
 
     try:
-        db.execute(text("SELECT 1"))
+
+        db.execute(
+            text("SELECT 1")
+        )
 
         return True
 
     except Exception as error:
+
         print(
             "Database connection test failed:",
             error,
@@ -131,4 +204,5 @@ def test_database_connection():
         return False
 
     finally:
+
         db.close()
