@@ -1,218 +1,304 @@
-// frontend/src/api/adminApi.js
-
 import api from "./api";
 
+/*
+|--------------------------------------------------------------------------
+| ADMIN LOGIN
+|--------------------------------------------------------------------------
+*/
 
-// ============================================================
-// ADMIN LOGIN
-// ============================================================
-
-export async function adminLogin(
-  email,
-  password
-) {
-  const response = await api.post(
-    "/admin/login",
-    {
+export async function adminLogin(email, password) {
+  try {
+    const response = await api.post("/admin/login", {
       email: email.trim().toLowerCase(),
       password,
+    });
+
+    /*
+     * Store JWT token.
+     */
+    if (response.data?.access_token) {
+      localStorage.setItem(
+        "admin_token",
+        response.data.access_token
+      );
     }
-  );
 
-  // ----------------------------------------------------------
-  // Save admin JWT token
-  // ----------------------------------------------------------
-
-  if (response.data?.access_token) {
-    localStorage.setItem(
-      "admin_token",
-      response.data.access_token
-    );
+    return response.data;
+  } catch (error) {
+    throw error;
   }
-
-  return response.data;
 }
 
-
-// ============================================================
-// ADMIN LOGOUT
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| ADMIN LOGOUT
+|--------------------------------------------------------------------------
+*/
 
 export function adminLogout() {
   localStorage.removeItem("admin_token");
 
+  /*
+   * Also remove student token to prevent
+   * accidental cross-session usage.
+   */
   localStorage.removeItem("student_token");
 
   window.location.href = "/admin/login";
 }
 
-
-// ============================================================
-// CHECK ADMIN LOGIN
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| CHECK ADMIN LOGIN
+|--------------------------------------------------------------------------
+*/
 
 export function isAdminLoggedIn() {
-  const token =
-    localStorage.getItem("admin_token");
-
-  return Boolean(token);
+  return Boolean(
+    localStorage.getItem("admin_token")
+  );
 }
 
-
-// ============================================================
-// GET ADMIN PROFILE
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET ADMIN PROFILE
+|--------------------------------------------------------------------------
+|
+| GET /api/admin/me
+|
+*/
 
 export async function getAdminProfile() {
-  const response = await api.get(
-    "/admin/me"
-  );
+  try {
+    const response = await api.get("/admin/me");
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-
-// ============================================================
-// GET ADMIN DASHBOARD
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| ADMIN DASHBOARD
+|--------------------------------------------------------------------------
+|
+| GET /api/admin/dashboard
+|
+*/
 
 export async function getAdminDashboard() {
-  const response = await api.get(
-    "/admin/dashboard"
-  );
+  try {
+    const response = await api.get(
+      "/admin/dashboard"
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-
-// ============================================================
-// GET ALL STUDENTS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET ALL STUDENTS
+|--------------------------------------------------------------------------
+|
+| GET /api/admin/students
+|
+*/
 
 export async function getStudents() {
-  const response = await api.get(
-    "/admin/students"
-  );
+  try {
+    const response = await api.get(
+      "/admin/students"
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
+/*
+|--------------------------------------------------------------------------
+| GET SINGLE STUDENT
+|--------------------------------------------------------------------------
+|
+| GET /api/admin/students/{student_id}
+|
+*/
 
-// ============================================================
-// GET SINGLE STUDENT
-// ============================================================
+export async function getStudent(studentId) {
+  try {
+    if (!studentId) {
+      throw new Error(
+        "Student ID is required."
+      );
+    }
 
-export async function getStudent(
-  studentId
-) {
-  const response = await api.get(
-    `/admin/students/${studentId}`
-  );
+    const response = await api.get(
+      `/admin/students/${studentId}`
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
+/*
+|--------------------------------------------------------------------------
+| APPROVE STUDENT
+|--------------------------------------------------------------------------
+|
+| PUT /api/admin/students/{student_id}/approve
+|
+*/
 
-// ============================================================
-// APPROVE STUDENT
-// ============================================================
+export async function approveStudent(studentId) {
+  try {
+    if (!studentId) {
+      throw new Error(
+        "Student ID is required."
+      );
+    }
 
-export async function approveStudent(
-  studentId
-) {
-  const response = await api.put(
-    `/admin/students/${studentId}/approve`
-  );
+    const response = await api.put(
+      `/admin/students/${studentId}/approve`
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-
-// ============================================================
-// REJECT STUDENT
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| REJECT STUDENT
+|--------------------------------------------------------------------------
+|
+| PUT /api/admin/students/{student_id}/reject
+|
+*/
 
 export async function rejectStudent(
   studentId,
   reason = ""
 ) {
-  const response = await api.put(
-    `/admin/students/${studentId}/reject`,
-    {
-      reason: reason.trim() || null,
+  try {
+    if (!studentId) {
+      throw new Error(
+        "Student ID is required."
+      );
     }
-  );
 
-  return response.data;
+    const response = await api.put(
+      `/admin/students/${studentId}/reject`,
+      {
+        reason:
+          reason?.trim() || null,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-
-// ============================================================
-// GET STUDENTS BY APPROVAL STATUS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET STUDENTS BY STATUS
+|--------------------------------------------------------------------------
+|
+| Examples:
+|
+| PENDING
+| APPROVED
+| REJECTED
+|
+| GET /api/admin/students/status/PENDING
+|
+*/
 
 export async function getStudentsByStatus(
   approvalStatus
 ) {
-  const response = await api.get(
-    `/admin/students/status/${approvalStatus}`
-  );
+  try {
+    if (!approvalStatus) {
+      throw new Error(
+        "Approval status is required."
+      );
+    }
 
-  return response.data;
+    const status =
+      approvalStatus
+        .trim()
+        .toUpperCase();
+
+    const response = await api.get(
+      `/admin/students/status/${status}`
+    );
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-
-// ============================================================
-// GET PENDING STUDENTS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET PENDING STUDENTS
+|--------------------------------------------------------------------------
+*/
 
 export async function getPendingStudents() {
-  return getStudentsByStatus(
-    "PENDING"
-  );
+  return getStudentsByStatus("PENDING");
 }
 
-
-// ============================================================
-// GET APPROVED STUDENTS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET APPROVED STUDENTS
+|--------------------------------------------------------------------------
+*/
 
 export async function getApprovedStudents() {
-  return getStudentsByStatus(
-    "APPROVED"
-  );
+  return getStudentsByStatus("APPROVED");
 }
 
-
-// ============================================================
-// GET REJECTED STUDENTS
-// ============================================================
+/*
+|--------------------------------------------------------------------------
+| GET REJECTED STUDENTS
+|--------------------------------------------------------------------------
+*/
 
 export async function getRejectedStudents() {
-  return getStudentsByStatus(
-    "REJECTED"
+  return getStudentsByStatus("REJECTED");
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET TOKEN
+|--------------------------------------------------------------------------
+*/
+
+export function getAdminToken() {
+  return localStorage.getItem(
+    "admin_token"
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| CLEAR ADMIN TOKEN
+|--------------------------------------------------------------------------
+*/
 
-// ============================================================
-// DEFAULT EXPORT
-// ============================================================
+export function clearAdminToken() {
+  localStorage.removeItem(
+    "admin_token"
+  );
+}
 
-const adminApi = {
-  adminLogin,
-  adminLogout,
-  isAdminLoggedIn,
-  getAdminProfile,
-  getAdminDashboard,
-  getStudents,
-  getStudent,
-  approveStudent,
-  rejectStudent,
-  getStudentsByStatus,
-  getPendingStudents,
-  getApprovedStudents,
-  getRejectedStudents,
-};
-
-export default adminApi;
