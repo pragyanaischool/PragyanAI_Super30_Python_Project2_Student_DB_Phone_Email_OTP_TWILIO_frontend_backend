@@ -16,7 +16,7 @@ from pydantic import (
 
 
 # ============================================================
-# ORM BASE
+# BASE ORM SCHEMA
 # ============================================================
 
 class ORMBaseModel(BaseModel):
@@ -122,7 +122,10 @@ class StudentRegister(BaseModel):
         return value
 
 
-# Existing auth.py compatibility
+# ============================================================
+# COMPATIBILITY
+# ============================================================
+
 Register = StudentRegister
 
 
@@ -206,6 +209,10 @@ class StudentUpdate(BaseModel):
         return value
 
 
+# Existing students.py compatibility
+UpdateStudent = StudentUpdate
+
+
 # ============================================================
 # STUDENT RESPONSE
 # ============================================================
@@ -245,7 +252,7 @@ class StudentResponse(ORMBaseModel):
     updated_at: datetime
 
 
-# Existing auth.py compatibility
+# Existing routers compatibility
 StudentOut = StudentResponse
 
 
@@ -288,16 +295,6 @@ Token = TokenResponse
 # ============================================================
 
 class OTP(BaseModel):
-    """
-    Compatibility schema used by existing otp.py.
-
-    Expected request:
-
-    {
-        "email": "student@gmail.com",
-        "otp": "123456"
-    }
-    """
 
     email: EmailStr
 
@@ -367,7 +364,7 @@ class OTPVerifyRequest(BaseModel):
 
 
 # ============================================================
-# PHONE OTP REQUEST
+# PHONE OTP
 # ============================================================
 
 class PhoneOTPRequest(BaseModel):
@@ -392,10 +389,6 @@ class PhoneOTPRequest(BaseModel):
 
         return value
 
-
-# ============================================================
-# PHONE OTP VERIFY
-# ============================================================
 
 class PhoneOTPVerifyRequest(BaseModel):
 
@@ -470,7 +463,7 @@ class AdminDecision(BaseModel):
 
 
 # ============================================================
-# MESSAGE
+# MESSAGE RESPONSE
 # ============================================================
 
 class MessageResponse(BaseModel):
