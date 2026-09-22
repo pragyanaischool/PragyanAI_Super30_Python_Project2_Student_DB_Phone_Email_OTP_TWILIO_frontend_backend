@@ -15,7 +15,7 @@ load_dotenv()
 
 
 # ============================================================
-# GET DATABASE URL
+# READ DATABASE URL
 # ============================================================
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -23,8 +23,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise RuntimeError(
-        "DATABASE_URL environment variable is not configured. "
-        "Please add DATABASE_URL in Render → Web Service → Environment."
+        "DATABASE_URL is missing.\n"
+        "Go to Render → Web Service → Environment Variables "
+        "and add DATABASE_URL."
     )
 
 
@@ -35,22 +36,30 @@ if not DATABASE_URL:
 DATABASE_URL = DATABASE_URL.strip()
 
 
+# Remove accidental surrounding quotes
+if (
+    len(DATABASE_URL) >= 2
+    and DATABASE_URL[0] == DATABASE_URL[-1]
+    and DATABASE_URL[0] in ("'", '"')
+):
+    DATABASE_URL = DATABASE_URL[1:-1].strip()
+
+
+# Remove accidental psql command prefix
+if DATABASE_URL.startswith("psql "):
+
+    DATABASE_URL = DATABASE_URL[5:].strip()
+
+    if (
+        len(DATABASE_URL) >= 2
+        and DATABASE_URL[0] == DATABASE_URL[-1]
+        and DATABASE_URL[0] in ("'", '"')
+    ):
+        DATABASE_URL = DATABASE_URL[1:-1].strip()
+
+
 # ============================================================
-# CONVERT RENDER POSTGRESQL URL
-# ============================================================
-#
-# Render may provide:
-#
-# postgres://username:password@host/database
-#
-# or:
-#
-# postgresql://username:password@host/database
-#
-# SQLAlchemy + psycopg should use:
-#
-# postgresql+psycopg://username:password@host/database
-#
+# NORMALIZE POSTGRESQL SCHEME
 # ============================================================
 
 if DATABASE_URL.startswith("postgres://"):
@@ -69,20 +78,109 @@ elif DATABASE_URL.startswith("postgresql://"):
         1,
     )
 
+elif DATABASE_URL.startswith("postgresql+psycopg://"):
+
+    # Already correct
+    pass
+
+else:
+
+    raise RuntimeError(
+        "Invalid DATABASE_URL format.\n\n"
+        "Expected something like:\n"
+        "postgresql://username:password@hostname/database\n\n"
+        "Please copy the Internal Database URL directly "
+        "from your Render PostgreSQL database."
+    )
+
 
 # ============================================================
-# CREATE DATABASE ENGINE
+# BASIC VALIDATION
 # ============================================================
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-)
+if "@" not in DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL appears to be malformed: "
+        "database host separator '@' is missing."
+    )
+
+
+if "/" not in DATABASE_URL.split("@", 1)[-1]:
+    raise RuntimeError(
+        "DATABASE_URL appears to be malformed: "
+        "database name is missing."
+    )
 
 
 # ============================================================
-# SESSION LOCAL
+# SAFE STARTUP INFORMATION
+# ============================================================
+#
+# This does NOT print the password.
+#
+# Example:
+#
+# postgresql+psycopg://username:****@hostname/database
+#
+# ============================================================
+
+try:
+
+    scheme_and_rest = DATABASE_URL.split("://", 1)
+
+    scheme = scheme_and_rest[0]
+
+    connection_part = scheme_and_rest[1]
+
+    credentials, host_database = connection_part.split("@", 1)
+
+    if ":" in credentials:
+
+        username = credentials.split(":", 1)[0]
+
+    else:
+
+        username = credentials
+
+    print(
+        f"Database configuration detected: "
+        f"{scheme}://{username}:****@{host_database}"
+    )
+
+except Exception:
+
+    raise RuntimeError(
+        "DATABASE_URL is present but appears to be malformed. "
+        "Copy the Internal Database URL directly from Render."
+    )
+
+
+# ============================================================
+# CREATE SQLALCHEMY ENGINE
+# ============================================================
+
+try:
+
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
+
+except Exception as exc:
+
+    raise RuntimeError(
+        "SQLAlchemy could not parse DATABASE_URL.\n\n"
+        "Make sure Render DATABASE_URL contains only the "
+        "PostgreSQL connection URL.\n\n"
+        "Example:\n"
+        "postgresql://username:password@hostname/database\n\n"
+        f"Original error: {exc}"
+    ) from exc
+
+
+# ============================================================
+# SESSION FACTORY
 # ============================================================
 
 SessionLocal = sessionmaker(
@@ -93,28 +191,25 @@ SessionLocal = sessionmaker(
 
 
 # ============================================================
-# SQLALCHEMY BASE
+# BASE CLASS
 # ============================================================
 
 Base = declarative_base()
 
 
 # ============================================================
-# DATABASE DEPENDENCY
+# FASTAPI DATABASE DEPENDENCY
 # ============================================================
 
 def get_db():
-    """
-    Creates a database session for a FastAPI request.
-
-    The session is automatically closed after
-    the request completes.
-    """
 
     db = SessionLocal()
 
     try:
+
         yield db
 
     finally:
+
         db.close()
+        
