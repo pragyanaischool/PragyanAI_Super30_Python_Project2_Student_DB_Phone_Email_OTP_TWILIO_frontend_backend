@@ -1,177 +1,288 @@
-/* =========================================================
-   PRAGYANAI STUDENT VERIFICATION PLATFORM
-   LOCAL STORAGE UTILITIES
-   ========================================================= */
+/**
+ * ============================================================
+ * STORAGE UTILITIES
+ * ============================================================
+ *
+ * Centralized localStorage management for:
+ *
+ * 1. Student authentication
+ * 2. Admin authentication
+ * 3. Registration / OTP flow
+ * 4. Generic application storage
+ *
+ * IMPORTANT:
+ *
+ * Never store passwords, OTPs, API keys, or other secrets
+ * in localStorage.
+ *
+ * ============================================================
+ */
 
-import {
-  STORAGE_KEYS,
-} from "./constants";
 
-/*
-|--------------------------------------------------------------------------
-| GENERIC STORAGE
-|--------------------------------------------------------------------------
-*/
+/* ============================================================
+   STORAGE KEYS
+   ============================================================ */
 
-export function setStorageItem(
-  key,
-  value
-) {
+export const STORAGE_KEYS = {
+  STUDENT_TOKEN: "student_token",
+  ADMIN_TOKEN: "admin_token",
+
+  REGISTRATION_EMAIL: "registration_email",
+  REGISTRATION_PHONE: "registration_phone",
+  REGISTRATION_STUDENT_ID: "registration_student_id",
+
+  REGISTRATION_DATA: "registration_data",
+
+  STUDENT_DATA: "student_data",
+  ADMIN_DATA: "admin_data",
+};
+
+
+/* ============================================================
+   SAFE LOCAL STORAGE CHECK
+   ============================================================ */
+
+function isStorageAvailable() {
   try {
-    if (
-      value === undefined ||
-      value === null
-    ) {
-      localStorage.removeItem(
-        key
-      );
-
-      return;
+    if (typeof window === "undefined") {
+      return false;
     }
 
-    const serialized =
-      typeof value === "string"
-        ? value
-        : JSON.stringify(value);
+    if (!window.localStorage) {
+      return false;
+    }
 
-    localStorage.setItem(
-      key,
-      serialized
+    const testKey =
+      "__pragyanai_storage_test__";
+
+    window.localStorage.setItem(
+      testKey,
+      "1"
     );
-  } catch (error) {
-    console.error(
-      "Unable to save localStorage item:",
-      error
+
+    window.localStorage.removeItem(
+      testKey
     );
+
+    return true;
+
+  } catch {
+    return false;
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET STORAGE ITEM
-|--------------------------------------------------------------------------
-*/
 
-export function getStorageItem(
-  key,
-  defaultValue = null
-) {
-  try {
-    const value =
-      localStorage.getItem(
-        key
-      );
+/* ============================================================
+   GENERIC STORAGE FUNCTIONS
+   ============================================================ */
 
-    if (value === null) {
-      return defaultValue;
-    }
+/**
+ * Get a value from localStorage.
+ */
 
-    return value;
-  } catch (error) {
-    console.error(
-      "Unable to read localStorage item:",
-      error
-    );
-
-    return defaultValue;
+export function getItem(key) {
+  if (!isStorageAvailable()) {
+    return null;
   }
-}
 
-/*
-|--------------------------------------------------------------------------
-| GET JSON STORAGE ITEM
-|--------------------------------------------------------------------------
-*/
-
-export function getJSONStorageItem(
-  key,
-  defaultValue = null
-) {
   try {
-    const value =
-      localStorage.getItem(
-        key
-      );
-
-    if (!value) {
-      return defaultValue;
-    }
-
-    return JSON.parse(value);
-  } catch (error) {
-    console.error(
-      "Unable to parse localStorage item:",
-      error
-    );
-
-    return defaultValue;
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| REMOVE STORAGE ITEM
-|--------------------------------------------------------------------------
-*/
-
-export function removeStorageItem(
-  key
-) {
-  try {
-    localStorage.removeItem(
+    return window.localStorage.getItem(
       key
     );
-  } catch (error) {
-    console.error(
-      "Unable to remove localStorage item:",
-      error
-    );
+  } catch {
+    return null;
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| CLEAR ALL STORAGE
-|--------------------------------------------------------------------------
-*/
 
-export function clearStorage() {
+/**
+ * Set a value in localStorage.
+ */
+
+export function setItem(key, value) {
+  if (!isStorageAvailable()) {
+    return false;
+  }
+
   try {
-    localStorage.clear();
-  } catch (error) {
-    console.error(
-      "Unable to clear localStorage:",
-      error
+    window.localStorage.setItem(
+      key,
+      String(value)
     );
+
+    return true;
+
+  } catch {
+    return false;
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| STUDENT TOKEN
-|--------------------------------------------------------------------------
-*/
 
-export function setStudentToken(
-  token
-) {
-  setStorageItem(
+/**
+ * Remove a value from localStorage.
+ */
+
+export function removeItem(key) {
+  if (!isStorageAvailable()) {
+    return false;
+  }
+
+  try {
+    window.localStorage.removeItem(
+      key
+    );
+
+    return true;
+
+  } catch {
+    return false;
+  }
+}
+
+
+/**
+ * Check whether a key exists.
+ */
+
+export function hasItem(key) {
+  if (!isStorageAvailable()) {
+    return false;
+  }
+
+  try {
+    return (
+      window.localStorage.getItem(key) !== null
+    );
+
+  } catch {
+    return false;
+  }
+}
+
+
+/**
+ * Parse JSON from localStorage.
+ */
+
+export function getJSON(key, fallback = null) {
+  const value =
+    getItem(key);
+
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+
+  } catch {
+    return fallback;
+  }
+}
+
+
+/**
+ * Store JSON in localStorage.
+ */
+
+export function setJSON(key, value) {
+  if (!isStorageAvailable()) {
+    return false;
+  }
+
+  try {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify(value)
+    );
+
+    return true;
+
+  } catch {
+    return false;
+  }
+}
+
+
+/**
+ * Remove multiple storage keys.
+ */
+
+export function removeItems(keys = []) {
+  if (!Array.isArray(keys)) {
+    return;
+  }
+
+  keys.forEach((key) => {
+    removeItem(key);
+  });
+}
+
+
+/* ============================================================
+   STUDENT TOKEN
+   ============================================================ */
+
+/**
+ * Get student JWT token.
+ */
+
+export function getStudentToken() {
+  return getItem(
+    STORAGE_KEYS.STUDENT_TOKEN
+  );
+}
+
+
+/**
+ * Store student JWT token.
+ */
+
+export function setStudentToken(token) {
+  if (!token) {
+    return false;
+  }
+
+  return setItem(
     STORAGE_KEYS.STUDENT_TOKEN,
     token
   );
 }
 
-export function getStudentToken() {
-  return getStorageItem(
+
+/**
+ * Remove student JWT token.
+ *
+ * IMPORTANT:
+ * This function is intentionally named
+ * removeStudentToken().
+ *
+ * authApi.js exposes clearStudentToken()
+ * as a frontend API helper.
+ */
+
+export function removeStudentToken() {
+  return removeItem(
     STORAGE_KEYS.STUDENT_TOKEN
   );
 }
 
-export function removeStudentToken() {
-  removeStorageItem(
-    STORAGE_KEYS.STUDENT_TOKEN
-  );
+
+/**
+ * Compatibility alias.
+ *
+ * Some parts of the application may use
+ * clearStudentToken().
+ */
+
+export function clearStudentToken() {
+  return removeStudentToken();
 }
+
+
+/**
+ * Check student login status.
+ */
 
 export function hasStudentToken() {
   return Boolean(
@@ -179,32 +290,61 @@ export function hasStudentToken() {
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN TOKEN
-|--------------------------------------------------------------------------
-*/
 
-export function setAdminToken(
-  token
-) {
-  setStorageItem(
+/* ============================================================
+   ADMIN TOKEN
+   ============================================================ */
+
+/**
+ * Get admin JWT token.
+ */
+
+export function getAdminToken() {
+  return getItem(
+    STORAGE_KEYS.ADMIN_TOKEN
+  );
+}
+
+
+/**
+ * Store admin JWT token.
+ */
+
+export function setAdminToken(token) {
+  if (!token) {
+    return false;
+  }
+
+  return setItem(
     STORAGE_KEYS.ADMIN_TOKEN,
     token
   );
 }
 
-export function getAdminToken() {
-  return getStorageItem(
+
+/**
+ * Remove admin JWT token.
+ */
+
+export function removeAdminToken() {
+  return removeItem(
     STORAGE_KEYS.ADMIN_TOKEN
   );
 }
 
-export function removeAdminToken() {
-  removeStorageItem(
-    STORAGE_KEYS.ADMIN_TOKEN
-  );
+
+/**
+ * Compatibility alias.
+ */
+
+export function clearAdminToken() {
+  return removeAdminToken();
 }
+
+
+/**
+ * Check admin login status.
+ */
 
 export function hasAdminToken() {
   return Boolean(
@@ -212,126 +352,244 @@ export function hasAdminToken() {
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| REGISTRATION EMAIL
-|--------------------------------------------------------------------------
-*/
 
-export function setRegistrationEmail(
-  email
-) {
-  setStorageItem(
+/* ============================================================
+   REGISTRATION EMAIL
+   ============================================================ */
+
+/**
+ * Store registration email.
+ */
+
+export function setRegistrationEmail(email) {
+  return setItem(
     STORAGE_KEYS.REGISTRATION_EMAIL,
-    email
+    email || ""
   );
 }
+
+
+/**
+ * Get registration email.
+ */
 
 export function getRegistrationEmail() {
-  return getStorageItem(
+  return (
+    getItem(
+      STORAGE_KEYS.REGISTRATION_EMAIL
+    ) || ""
+  );
+}
+
+
+/**
+ * Remove registration email.
+ */
+
+export function clearRegistrationEmail() {
+  return removeItem(
     STORAGE_KEYS.REGISTRATION_EMAIL
   );
 }
 
-export function removeRegistrationEmail() {
-  removeStorageItem(
-    STORAGE_KEYS.REGISTRATION_EMAIL
-  );
-}
 
-/*
-|--------------------------------------------------------------------------
-| REGISTRATION PHONE
-|--------------------------------------------------------------------------
-*/
+/* ============================================================
+   REGISTRATION PHONE
+   ============================================================ */
 
-export function setRegistrationPhone(
-  phone
-) {
-  setStorageItem(
+/**
+ * Store registration phone.
+ */
+
+export function setRegistrationPhone(phone) {
+  return setItem(
     STORAGE_KEYS.REGISTRATION_PHONE,
-    phone
+    phone || ""
   );
 }
+
+
+/**
+ * Get registration phone.
+ */
 
 export function getRegistrationPhone() {
-  return getStorageItem(
+  return (
+    getItem(
+      STORAGE_KEYS.REGISTRATION_PHONE
+    ) || ""
+  );
+}
+
+
+/**
+ * Remove registration phone.
+ */
+
+export function clearRegistrationPhone() {
+  return removeItem(
     STORAGE_KEYS.REGISTRATION_PHONE
   );
 }
 
-export function removeRegistrationPhone() {
-  removeStorageItem(
-    STORAGE_KEYS.REGISTRATION_PHONE
-  );
-}
 
-/*
-|--------------------------------------------------------------------------
-| REGISTRATION STUDENT ID
-|--------------------------------------------------------------------------
-*/
+/* ============================================================
+   REGISTRATION STUDENT ID
+   ============================================================ */
 
-export function setRegistrationStudentId(
-  studentId
-) {
-  setStorageItem(
+/**
+ * Store student ID generated during registration.
+ */
+
+export function setRegistrationStudentId(studentId) {
+  return setItem(
     STORAGE_KEYS.REGISTRATION_STUDENT_ID,
-    String(studentId)
+    studentId || ""
   );
 }
+
+
+/**
+ * Get registration student ID.
+ */
 
 export function getRegistrationStudentId() {
-  return getStorageItem(
+  return (
+    getItem(
+      STORAGE_KEYS.REGISTRATION_STUDENT_ID
+    ) || ""
+  );
+}
+
+
+/**
+ * Remove registration student ID.
+ */
+
+export function clearRegistrationStudentId() {
+  return removeItem(
     STORAGE_KEYS.REGISTRATION_STUDENT_ID
   );
 }
 
-export function removeRegistrationStudentId() {
-  removeStorageItem(
-    STORAGE_KEYS.REGISTRATION_STUDENT_ID
+
+/* ============================================================
+   REGISTRATION DATA
+   ============================================================ */
+
+/**
+ * Save all registration information.
+ *
+ * Expected object:
+ *
+ * {
+ *   email: "student@gmail.com",
+ *   phone: "9876543210",
+ *   studentId: 123
+ * }
+ */
+
+export function saveRegistrationData(data = {}) {
+
+  if (
+    !data ||
+    typeof data !== "object"
+  ) {
+    return false;
+  }
+
+
+  const email =
+    data.email ||
+    "";
+
+  const phone =
+    data.phone ||
+    "";
+
+  const studentId =
+    data.studentId ||
+    data.student_id ||
+    data.id ||
+    "";
+
+
+  /*
+   * Store individual values.
+   */
+
+  setRegistrationEmail(
+    email
+  );
+
+  setRegistrationPhone(
+    phone
+  );
+
+  setRegistrationStudentId(
+    studentId
+  );
+
+
+  /*
+   * Also store the complete object.
+   */
+
+  return setJSON(
+    STORAGE_KEYS.REGISTRATION_DATA,
+    {
+      email,
+      phone,
+      studentId,
+    }
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| REGISTRATION DATA
-|--------------------------------------------------------------------------
-*/
 
-export function saveRegistrationData(
-  data
-) {
-  if (!data) {
-    return;
-  }
-
-  if (data.email) {
-    setRegistrationEmail(
-      data.email
-    );
-  }
-
-  if (data.phone) {
-    setRegistrationPhone(
-      data.phone
-    );
-  }
-
-  if (data.student_id) {
-    setRegistrationStudentId(
-      data.student_id
-    );
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| GET REGISTRATION DATA
-|--------------------------------------------------------------------------
-*/
+/**
+ * Get registration data.
+ */
 
 export function getRegistrationData() {
+
+  const stored =
+    getJSON(
+      STORAGE_KEYS.REGISTRATION_DATA,
+      null
+    );
+
+
+  /*
+   * If complete registration data exists,
+   * use it.
+   */
+
+  if (
+    stored &&
+    typeof stored === "object"
+  ) {
+    return {
+      email:
+        stored.email ||
+        getRegistrationEmail(),
+
+      phone:
+        stored.phone ||
+        getRegistrationPhone(),
+
+      studentId:
+        stored.studentId ||
+        stored.student_id ||
+        getRegistrationStudentId(),
+    };
+  }
+
+
+  /*
+   * Otherwise reconstruct the data from
+   * individual storage values.
+   */
+
   return {
     email:
       getRegistrationEmail(),
@@ -339,86 +597,353 @@ export function getRegistrationData() {
     phone:
       getRegistrationPhone(),
 
-    student_id:
+    studentId:
       getRegistrationStudentId(),
   };
 }
 
-/*
-|--------------------------------------------------------------------------
-| CLEAR REGISTRATION DATA
-|--------------------------------------------------------------------------
-*/
+
+/**
+ * Clear all registration information.
+ */
 
 export function clearRegistrationData() {
-  removeRegistrationEmail();
 
-  removeRegistrationPhone();
-
-  removeRegistrationStudentId();
+  removeItems([
+    STORAGE_KEYS.REGISTRATION_EMAIL,
+    STORAGE_KEYS.REGISTRATION_PHONE,
+    STORAGE_KEYS.REGISTRATION_STUDENT_ID,
+    STORAGE_KEYS.REGISTRATION_DATA,
+  ]);
 }
 
-/*
-|--------------------------------------------------------------------------
-| CLEAR STUDENT SESSION
-|--------------------------------------------------------------------------
-*/
+
+/* ============================================================
+   STUDENT DATA
+   ============================================================ */
+
+/**
+ * Save student profile data locally.
+ *
+ * This is only a convenience cache.
+ *
+ * The backend remains the source of truth.
+ */
+
+export function setStudentData(student) {
+  if (!student) {
+    return false;
+  }
+
+  return setJSON(
+    STORAGE_KEYS.STUDENT_DATA,
+    student
+  );
+}
+
+
+/**
+ * Get cached student data.
+ */
+
+export function getStudentData() {
+  return getJSON(
+    STORAGE_KEYS.STUDENT_DATA,
+    null
+  );
+}
+
+
+/**
+ * Remove cached student data.
+ */
+
+export function clearStudentData() {
+  return removeItem(
+    STORAGE_KEYS.STUDENT_DATA
+  );
+}
+
+
+/* ============================================================
+   ADMIN DATA
+   ============================================================ */
+
+/**
+ * Save admin data locally.
+ *
+ * This is only a convenience cache.
+ */
+
+export function setAdminData(admin) {
+  if (!admin) {
+    return false;
+  }
+
+  return setJSON(
+    STORAGE_KEYS.ADMIN_DATA,
+    admin
+  );
+}
+
+
+/**
+ * Get cached admin data.
+ */
+
+export function getAdminData() {
+  return getJSON(
+    STORAGE_KEYS.ADMIN_DATA,
+    null
+  );
+}
+
+
+/**
+ * Remove cached admin data.
+ */
+
+export function clearAdminData() {
+  return removeItem(
+    STORAGE_KEYS.ADMIN_DATA
+  );
+}
+
+
+/* ============================================================
+   STUDENT SESSION
+   ============================================================ */
+
+/**
+ * Clear student session.
+ *
+ * Removes:
+ *
+ * - Student JWT
+ * - Cached student data
+ */
 
 export function clearStudentSession() {
   removeStudentToken();
-
-  clearRegistrationData();
+  clearStudentData();
 }
 
-/*
-|--------------------------------------------------------------------------
-| CLEAR ADMIN SESSION
-|--------------------------------------------------------------------------
-*/
+
+/* ============================================================
+   ADMIN SESSION
+   ============================================================ */
+
+/**
+ * Clear admin session.
+ *
+ * Removes:
+ *
+ * - Admin JWT
+ * - Cached admin data
+ */
 
 export function clearAdminSession() {
   removeAdminToken();
+  clearAdminData();
 }
 
-/*
-|--------------------------------------------------------------------------
-| CLEAR ALL APPLICATION SESSION
-|--------------------------------------------------------------------------
-*/
 
-export function clearApplicationSession() {
+/* ============================================================
+   ALL AUTHENTICATION SESSIONS
+   ============================================================ */
+
+/**
+ * Clear both student and admin authentication.
+ */
+
+export function clearAllSessions() {
   clearStudentSession();
-
   clearAdminSession();
 }
 
-/*
-|--------------------------------------------------------------------------
-| CHECK LOGIN TYPE
-|--------------------------------------------------------------------------
-*/
+
+/* ============================================================
+   CURRENT LOGGED-IN USER TYPE
+   ============================================================ */
+
+/**
+ * Returns:
+ *
+ * "admin"
+ * "student"
+ * null
+ *
+ * Admin is checked first because the admin
+ * dashboard should take priority when an
+ * admin session exists.
+ */
 
 export function getLoggedInUserType() {
-  const studentLoggedIn =
-    hasStudentToken();
 
-  const adminLoggedIn =
-    hasAdminToken();
-
-  if (
-    studentLoggedIn &&
-    adminLoggedIn
-  ) {
-    return "both";
-  }
-
-  if (studentLoggedIn) {
-    return "student";
-  }
-
-  if (adminLoggedIn) {
+  if (hasAdminToken()) {
     return "admin";
+  }
+
+  if (hasStudentToken()) {
+    return "student";
   }
 
   return null;
 }
+
+
+/* ============================================================
+   GENERIC AUTH STATUS
+   ============================================================ */
+
+export function isAuthenticated() {
+  return (
+    hasStudentToken() ||
+    hasAdminToken()
+  );
+}
+
+
+/* ============================================================
+   STORAGE DEBUG INFORMATION
+   ============================================================ */
+
+/**
+ * Returns safe storage status.
+ *
+ * IMPORTANT:
+ * Tokens themselves are NOT returned.
+ */
+
+export function getStorageStatus() {
+  return {
+    storageAvailable:
+      isStorageAvailable(),
+
+    studentLoggedIn:
+      hasStudentToken(),
+
+    adminLoggedIn:
+      hasAdminToken(),
+
+    registrationEmail:
+      Boolean(
+        getRegistrationEmail()
+      ),
+
+    registrationPhone:
+      Boolean(
+        getRegistrationPhone()
+      ),
+
+    registrationStudentId:
+      Boolean(
+        getRegistrationStudentId()
+      ),
+  };
+}
+
+
+/* ============================================================
+   CLEAR EVERYTHING
+   ============================================================ */
+
+/**
+ * Clear all PragyanAI application storage.
+ *
+ * This should generally be used only when
+ * explicitly resetting the application.
+ */
+
+export function clearAllStorage() {
+
+  removeItems([
+    STORAGE_KEYS.STUDENT_TOKEN,
+    STORAGE_KEYS.ADMIN_TOKEN,
+
+    STORAGE_KEYS.REGISTRATION_EMAIL,
+    STORAGE_KEYS.REGISTRATION_PHONE,
+    STORAGE_KEYS.REGISTRATION_STUDENT_ID,
+    STORAGE_KEYS.REGISTRATION_DATA,
+
+    STORAGE_KEYS.STUDENT_DATA,
+    STORAGE_KEYS.ADMIN_DATA,
+  ]);
+}
+
+
+/* ============================================================
+   DEFAULT EXPORT
+   ============================================================ */
+
+const storage = {
+
+  /* Generic */
+  getItem,
+  setItem,
+  removeItem,
+  hasItem,
+
+  getJSON,
+  setJSON,
+
+  removeItems,
+
+  /* Student authentication */
+  getStudentToken,
+  setStudentToken,
+  removeStudentToken,
+  clearStudentToken,
+  hasStudentToken,
+
+  /* Admin authentication */
+  getAdminToken,
+  setAdminToken,
+  removeAdminToken,
+  clearAdminToken,
+  hasAdminToken,
+
+  /* Registration */
+  setRegistrationEmail,
+  getRegistrationEmail,
+  clearRegistrationEmail,
+
+  setRegistrationPhone,
+  getRegistrationPhone,
+  clearRegistrationPhone,
+
+  setRegistrationStudentId,
+  getRegistrationStudentId,
+  clearRegistrationStudentId,
+
+  saveRegistrationData,
+  getRegistrationData,
+  clearRegistrationData,
+
+  /* Student data */
+  setStudentData,
+  getStudentData,
+  clearStudentData,
+
+  /* Admin data */
+  setAdminData,
+  getAdminData,
+  clearAdminData,
+
+  /* Sessions */
+  clearStudentSession,
+  clearAdminSession,
+  clearAllSessions,
+
+  /* Authentication */
+  getLoggedInUserType,
+  isAuthenticated,
+
+  /* Diagnostics */
+  getStorageStatus,
+
+  /* Reset */
+  clearAllStorage,
+};
+
+export default storage;
