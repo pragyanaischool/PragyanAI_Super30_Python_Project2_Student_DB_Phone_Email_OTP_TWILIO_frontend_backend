@@ -1,8 +1,12 @@
+// ============================================================
+// PragyanAI Student Verification Platform
+// File: frontend/src/context/AuthContext.jsx
+// ============================================================
+
 import React, {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -19,377 +23,391 @@ import {
   getRegistrationStudentId,
 } from "../api/authApi";
 
-/*
-|--------------------------------------------------------------------------
-| AUTH CONTEXT
-|--------------------------------------------------------------------------
-*/
+
+// ============================================================
+// CREATE CONTEXT
+// ============================================================
 
 const AuthContext = createContext(null);
 
-/*
-|--------------------------------------------------------------------------
-| AUTH PROVIDER
-|--------------------------------------------------------------------------
-*/
+
+// ============================================================
+// AUTH PROVIDER
+// ============================================================
 
 export function AuthProvider({ children }) {
-  /*
-  |--------------------------------------------------------------------------
-  | STATE
-  |--------------------------------------------------------------------------
-  */
+
+  // ----------------------------------------------------------
+  // STUDENT STATE
+  // ----------------------------------------------------------
 
   const [student, setStudent] =
     useState(null);
 
   const [token, setToken] =
-    useState(() =>
-      localStorage.getItem(
-        "student_token"
-      )
-    );
+    useState(null);
+
+  // ----------------------------------------------------------
+  // LOADING STATE
+  // ----------------------------------------------------------
 
   const [loading, setLoading] =
-    useState(true);
+    useState(false);
 
   const [
     authenticationChecked,
     setAuthenticationChecked,
   ] = useState(false);
 
+  // ----------------------------------------------------------
+  // REGISTRATION INFORMATION
+  // ----------------------------------------------------------
+
   const [
     registrationEmail,
     setRegistrationEmail,
-  ] = useState(() =>
+  ] = useState(
     getRegistrationEmail()
   );
 
   const [
     registrationPhone,
     setRegistrationPhone,
-  ] = useState(() =>
+  ] = useState(
     getRegistrationPhone()
   );
 
   const [
     registrationStudentId,
     setRegistrationStudentId,
-  ] = useState(() =>
+  ] = useState(
     getRegistrationStudentId()
   );
 
-  /*
-  |--------------------------------------------------------------------------
-  | CHECK CURRENT STUDENT
-  |--------------------------------------------------------------------------
-  |
-  | When the page is refreshed:
-  |
-  | Browser
-  |    ↓
-  | student_token
-  |    ↓
-  | /auth/me
-  |    ↓
-  | Student information
-  |
-  */
-
-  const checkAuthentication =
-    async () => {
-      const storedToken =
-        localStorage.getItem(
-          "student_token"
-        );
-
-      /*
-       * No token means the student
-       * is not logged in.
-       */
-      if (!storedToken) {
-        setStudent(null);
-        setToken(null);
-        setLoading(false);
-        setAuthenticationChecked(true);
-
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        const currentStudent =
-          await getCurrentStudent();
-
-        /*
-         * Backend successfully
-         * validated the token.
-         */
-        setStudent(
-          currentStudent
-        );
-
-        setToken(
-          storedToken
-        );
-      } catch (error) {
-        /*
-         * Token is invalid,
-         * expired, or backend
-         * rejected it.
-         */
-        console.warn(
-          "Student authentication check failed:",
-          error
-        );
-
-        clearStudentToken();
-
-        setStudent(null);
-        setToken(null);
-      } finally {
-        setLoading(false);
-        setAuthenticationChecked(
-          true
-        );
-      }
-    };
-
-  /*
-  |--------------------------------------------------------------------------
-  | INITIAL AUTHENTICATION CHECK
-  |--------------------------------------------------------------------------
-  */
+  // ==========================================================
+  // INITIAL AUTHENTICATION CHECK
+  // ==========================================================
 
   useEffect(() => {
+
+    let mounted = true;
+
+    const checkAuthentication =
+      async () => {
+
+        try {
+
+          const storedToken =
+            localStorage.getItem(
+              "student_token"
+            );
+
+          if (
+            storedToken &&
+            isStudentLoggedIn()
+          ) {
+
+            try {
+
+              const currentStudent =
+                await getCurrentStudent();
+
+              if (mounted) {
+
+                setStudent(
+                  currentStudent
+                );
+
+                setToken(
+                  storedToken
+                );
+              }
+
+            } catch (error) {
+
+              console.warn(
+                "Stored student token is invalid or expired.",
+                error
+              );
+
+              clearStudentToken();
+
+              if (mounted) {
+                setStudent(null);
+                setToken(null);
+              }
+            }
+
+          } else {
+
+            if (mounted) {
+              setStudent(null);
+              setToken(null);
+            }
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Authentication check failed:",
+            error
+          );
+
+          if (mounted) {
+            setStudent(null);
+            setToken(null);
+          }
+
+        } finally {
+
+          if (mounted) {
+            setAuthenticationChecked(
+              true
+            );
+          }
+        }
+      };
+
     checkAuthentication();
+
+    return () => {
+      mounted = false;
+    };
+
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | LOGIN
-  |--------------------------------------------------------------------------
-  */
+
+  // ==========================================================
+  // LOGIN
+  // ==========================================================
 
   const login = async (
     email,
     password
   ) => {
+
     setLoading(true);
 
     try {
-      const response =
+
+      // ------------------------------------------------------
+      // CLEAN INPUT
+      // ------------------------------------------------------
+
+      const normalizedEmail =
+        String(email || "")
+          .trim()
+          .toLowerCase();
+
+      const normalizedPassword =
+        String(password || "");
+
+      // ------------------------------------------------------
+      // BASIC VALIDATION
+      // ------------------------------------------------------
+
+      if (!normalizedEmail) {
+        throw new Error(
+          "Email address is required."
+        );
+      }
+
+      if (!normalizedPassword) {
+        throw new Error(
+          "Password is required."
+        );
+      }
+
+      // ------------------------------------------------------
+      // CALL BACKEND
+      // ------------------------------------------------------
+
+      const loginResponse =
         await loginStudent(
-          email,
-          password
+          normalizedEmail,
+          normalizedPassword
         );
 
-      /*
-       * authApi.js stores the token.
-       */
-      const storedToken =
-        localStorage.getItem(
-          "student_token"
-        );
+      console.log(
+        "Login API response:",
+        loginResponse
+      );
 
-      if (storedToken) {
-        setToken(
-          storedToken
+      // ------------------------------------------------------
+      // GET TOKEN
+      // ------------------------------------------------------
+
+      const accessToken =
+        loginResponse?.access_token;
+
+      if (!accessToken) {
+
+        throw new Error(
+          "Login succeeded but no access token was returned by the server."
         );
       }
 
-      /*
-       * Some backend implementations
-       * may return student information
-       * directly.
-       */
-      if (response?.student) {
-        setStudent(
-          response.student
-        );
-      } else {
-        /*
-         * Otherwise retrieve the
-         * authenticated student.
-         */
-        try {
-          const currentStudent =
-            await getCurrentStudent();
+      // ------------------------------------------------------
+      // SAVE TOKEN
+      // ------------------------------------------------------
 
-          setStudent(
-            currentStudent
-          );
-        } catch (profileError) {
-          console.warn(
-            "Unable to retrieve student profile after login:",
-            profileError
-          );
-        }
-      }
+      setToken(accessToken);
 
-      return response;
+      // ------------------------------------------------------
+      // GET CURRENT STUDENT
+      // ------------------------------------------------------
+
+      const currentStudent =
+        await getCurrentStudent();
+
+      console.log(
+        "Current student:",
+        currentStudent
+      );
+
+      // ------------------------------------------------------
+      // UPDATE STATE
+      // ------------------------------------------------------
+
+      setStudent(
+        currentStudent
+      );
+
+      setAuthenticationChecked(
+        true
+      );
+
+      return {
+        ...loginResponse,
+        student: currentStudent,
+      };
+
+    } catch (error) {
+
+      console.error(
+        "AuthContext login failed:",
+        error
+      );
+
+      throw error;
+
     } finally {
+
       setLoading(false);
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | LOGOUT
-  |--------------------------------------------------------------------------
-  */
 
-  const logout = () => {
-    /*
-     * Clear local authentication state.
-     */
-    clearStudentToken();
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
 
-    setStudent(null);
-    setToken(null);
+  const logout = async () => {
 
-    /*
-     * Clear registration data.
-     */
-    localStorage.removeItem(
-      "registration_email"
-    );
-
-    localStorage.removeItem(
-      "registration_phone"
-    );
-
-    localStorage.removeItem(
-      "registration_student_id"
-    );
-
-    setRegistrationEmail(null);
-    setRegistrationPhone(null);
-    setRegistrationStudentId(null);
-  };
-
-  /*
-  |--------------------------------------------------------------------------
-  | REGISTER STUDENT
-  |--------------------------------------------------------------------------
-  |
-  | Registration itself does not necessarily
-  | authenticate the student.
-  |
-  | Registration response is stored so that
-  | EmailVerification and PhoneVerification
-  | can continue the process.
-  |
-  */
-
-  const register = async (
-    studentData
-  ) => {
     setLoading(true);
 
     try {
-      const response =
-        await registerStudent(
-          studentData
+
+      try {
+        await logoutStudent();
+      } catch (error) {
+
+        console.warn(
+          "Backend logout request failed:",
+          error
         );
 
-      /*
-       * Store registration information.
-       */
-      storeRegistrationInfo(
-        response
+        // Local logout should still continue.
+      }
+
+    } finally {
+
+      clearStudentToken();
+
+      setStudent(null);
+      setToken(null);
+
+      setAuthenticationChecked(
+        true
       );
 
-      /*
-       * If backend returns values that
-       * were not included in response,
-       * use the original registration
-       * data as fallback.
-       */
+      setLoading(false);
+    }
+  };
 
-      const email =
-        response?.email ||
-        studentData?.email ||
-        null;
 
-      const phone =
-        response?.phone ||
-        studentData?.phone ||
-        null;
+  // ==========================================================
+  // REGISTER
+  // ==========================================================
 
-      const studentId =
-        response?.student_id ||
-        null;
+  const register = async (
+    registrationData
+  ) => {
 
-      if (email) {
-        localStorage.setItem(
-          "registration_email",
-          email
+    setLoading(true);
+
+    try {
+
+      const response =
+        await registerStudent(
+          registrationData
+        );
+
+      // ------------------------------------------------------
+      // SAVE REGISTRATION INFORMATION
+      // ------------------------------------------------------
+
+      try {
+
+        storeRegistrationInfo(
+          response,
+          registrationData
         );
 
         setRegistrationEmail(
-          email
-        );
-      }
-
-      if (phone) {
-        localStorage.setItem(
-          "registration_phone",
-          phone
+          getRegistrationEmail()
         );
 
         setRegistrationPhone(
-          phone
-        );
-      }
-
-      if (studentId) {
-        localStorage.setItem(
-          "registration_student_id",
-          String(studentId)
+          getRegistrationPhone()
         );
 
         setRegistrationStudentId(
-          String(studentId)
-        );
-      }
-
-      /*
-       * If registration endpoint
-       * also returns an access token,
-       * maintain authentication.
-       */
-      const storedToken =
-        localStorage.getItem(
-          "student_token"
+          getRegistrationStudentId()
         );
 
-      if (storedToken) {
-        setToken(
-          storedToken
+      } catch (storageError) {
+
+        console.warn(
+          "Unable to save registration information:",
+          storageError
         );
       }
 
       return response;
+
     } finally {
+
       setLoading(false);
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | REFRESH STUDENT
-  |--------------------------------------------------------------------------
-  |
-  | Useful after profile update,
-  | OTP verification, or approval.
-  |
-  */
+
+  // ==========================================================
+  // REFRESH STUDENT
+  // ==========================================================
 
   const refreshStudent =
     async () => {
+
       try {
+
+        if (
+          !isStudentLoggedIn()
+        ) {
+          return null;
+        }
+
         const currentStudent =
           await getCurrentStudent();
 
@@ -398,125 +416,88 @@ export function AuthProvider({ children }) {
         );
 
         return currentStudent;
-      } catch (error) {
-        /*
-         * If authentication has
-         * become invalid, clear it.
-         */
-        if (
-          error?.response?.status ===
-          401
-        ) {
-          clearStudentToken();
 
-          setStudent(null);
-          setToken(null);
-        }
+      } catch (error) {
+
+        console.error(
+          "Unable to refresh student:",
+          error
+        );
 
         throw error;
       }
     };
 
-  /*
-  |--------------------------------------------------------------------------
-  | UPDATE STUDENT IN CONTEXT
-  |--------------------------------------------------------------------------
-  |
-  | Allows pages to immediately update
-  | the local student state.
-  |
-  */
+
+  // ==========================================================
+  // UPDATE STUDENT
+  // ==========================================================
 
   const updateStudent = (
     updatedStudent
   ) => {
+
     setStudent(
       updatedStudent
     );
+
+    return updatedStudent;
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | AUTHENTICATION FLAGS
-  |--------------------------------------------------------------------------
-  */
+
+  // ==========================================================
+  // AUTHENTICATION STATUS
+  // ==========================================================
 
   const isAuthenticated =
-    Boolean(
-      token && student
-    );
+    Boolean(student && token);
 
   const hasToken =
     Boolean(token);
 
-  /*
-  |--------------------------------------------------------------------------
-  | CONTEXT VALUE
-  |--------------------------------------------------------------------------
-  */
 
-  const contextValue = useMemo(
-    () => ({
-      /*
-       * Student
-       */
-      student,
+  // ==========================================================
+  // CONTEXT VALUE
+  // ==========================================================
 
-      setStudent,
-      updateStudent,
-      refreshStudent,
+  const contextValue = {
 
-      /*
-       * Authentication
-       */
-      token,
-      isAuthenticated,
-      hasToken,
+    // Student
+    student,
+    setStudent,
 
-      /*
-       * Loading
-       */
-      loading,
-      authenticationChecked,
+    // Token
+    token,
+    setToken,
 
-      /*
-       * Actions
-       */
-      login,
-      logout,
-      register,
+    // Loading
+    loading,
 
-      /*
-       * Registration data
-       */
-      registrationEmail,
-      registrationPhone,
-      registrationStudentId,
+    // Authentication
+    isAuthenticated,
+    authenticationChecked,
+    hasToken,
 
-      /*
-       * Utility
-       */
-      checkAuthentication,
-      isStudentLoggedIn,
-    }),
-    [
-      student,
-      token,
-      isAuthenticated,
-      hasToken,
-      loading,
-      authenticationChecked,
-      registrationEmail,
-      registrationPhone,
-      registrationStudentId,
-    ]
-  );
+    // Actions
+    login,
+    logout,
+    register,
+    refreshStudent,
+    updateStudent,
 
-  /*
-  |--------------------------------------------------------------------------
-  | PROVIDER
-  |--------------------------------------------------------------------------
-  */
+    // Registration
+    registrationEmail,
+    registrationPhone,
+    registrationStudentId,
+
+    // Compatibility
+    getCurrentStudent,
+  };
+
+
+  // ==========================================================
+  // PROVIDER
+  // ==========================================================
 
   return (
     <AuthContext.Provider
@@ -527,29 +508,18 @@ export function AuthProvider({ children }) {
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| USE AUTH
-|--------------------------------------------------------------------------
-|
-| Usage:
-|
-| const {
-|   student,
-|   login,
-|   logout,
-|   isAuthenticated
-| } = useAuth();
-|
-*/
+
+// ============================================================
+// USE AUTH HOOK
+// ============================================================
 
 export function useAuth() {
+
   const context =
-    useContext(
-      AuthContext
-    );
+    useContext(AuthContext);
 
   if (!context) {
+
     throw new Error(
       "useAuth must be used inside an AuthProvider."
     );
@@ -557,5 +527,10 @@ export function useAuth() {
 
   return context;
 }
+
+
+// ============================================================
+// DEFAULT EXPORT
+// ============================================================
 
 export default AuthContext;
