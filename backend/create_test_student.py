@@ -12,14 +12,13 @@ from security import hash_password
 # TEST STUDENT DETAILS
 # ============================================================
 
-EMAIL = "student@gmail.com"
-PASSWORD = "Student@123"
-
-PHONE = "9876543210"
+TEST_EMAIL = "student@gmail.com"
+TEST_PASSWORD = "Student@123"
+TEST_PHONE = "9999999999"
 
 
 # ============================================================
-# CREATE STUDENT
+# CREATE / UPDATE TEST STUDENT
 # ============================================================
 
 def create_test_student():
@@ -29,148 +28,197 @@ def create_test_student():
     try:
 
         # ----------------------------------------------------
-        # Check existing student
+        # CHECK WHETHER STUDENT ALREADY EXISTS
         # ----------------------------------------------------
 
-        existing_student = (
+        student = (
             db.query(Student)
             .filter(
-                Student.email == EMAIL
+                Student.email == TEST_EMAIL
             )
             .first()
         )
 
         # ----------------------------------------------------
-        # If already exists, update it
+        # CREATE NEW STUDENT
         # ----------------------------------------------------
 
-        if existing_student:
+        if student is None:
 
             print(
-                f"Student already exists: {EMAIL}"
+                f"Student not found. "
+                f"Creating {TEST_EMAIL}..."
             )
 
-            existing_student.password_hash = (
-                hash_password(PASSWORD)
+            student = Student(
+                full_name="PragyanAI Test Student",
+
+                college_name=(
+                    "PragyanAI Demo College"
+                ),
+
+                degree="BE",
+
+                branch="Computer Science and Engineering",
+
+                tenth_cgpa=9.0,
+
+                twelfth_cgpa=9.0,
+
+                be_cgpa=8.5,
+
+                phone=TEST_PHONE,
+
+                email=TEST_EMAIL,
+
+                password_hash=hash_password(
+                    TEST_PASSWORD
+                ),
+
+                email_verified=True,
+
+                phone_verified=True,
+
+                approval_status="APPROVED",
+
+                rejection_reason=None,
             )
 
-            existing_student.email_verified = True
-
-            existing_student.phone_verified = True
-
-            existing_student.approval_status = "APPROVED"
-
-            existing_student.rejection_reason = None
+            db.add(student)
 
             db.commit()
 
-            db.refresh(
-                existing_student
+            db.refresh(student)
+
+            print(
+                "================================================"
             )
 
             print(
-                "Existing student updated successfully."
+                "TEST STUDENT CREATED SUCCESSFULLY"
             )
 
             print(
-                f"Student ID: {existing_student.id}"
+                "================================================"
             )
 
-            return
+            print(
+                f"ID       : {student.id}"
+            )
+
+            print(
+                f"Email    : {student.email}"
+            )
+
+            print(
+                f"Password : {TEST_PASSWORD}"
+            )
+
+            print(
+                f"Phone    : {student.phone}"
+            )
+
+            print(
+                f"Email Verified : {student.email_verified}"
+            )
+
+            print(
+                f"Phone Verified : {student.phone_verified}"
+            )
+
+            print(
+                f"Approval Status : {student.approval_status}"
+            )
+
+            print(
+                "================================================"
+            )
 
         # ----------------------------------------------------
-        # Create new student
+        # UPDATE EXISTING STUDENT
         # ----------------------------------------------------
 
-        student = Student(
+        else:
 
-            full_name="Test Student",
+            print(
+                f"Student already exists: "
+                f"{student.email}"
+            )
 
-            college_name="PragyanAI Test College",
+            student.password_hash = hash_password(
+                TEST_PASSWORD
+            )
 
-            degree="BE",
+            student.email_verified = True
 
-            branch="Computer Science and Engineering",
+            student.phone_verified = True
 
-            tenth_cgpa=8.5,
+            student.approval_status = "APPROVED"
 
-            twelfth_cgpa=8.5,
+            student.rejection_reason = None
 
-            be_cgpa=8.5,
+            db.commit()
 
-            phone=PHONE,
+            db.refresh(student)
 
-            email=EMAIL,
+            print(
+                "================================================"
+            )
 
-            password_hash=
-                hash_password(PASSWORD),
+            print(
+                "TEST STUDENT UPDATED SUCCESSFULLY"
+            )
 
-            email_verified=True,
+            print(
+                "================================================"
+            )
 
-            phone_verified=True,
+            print(
+                f"ID       : {student.id}"
+            )
 
-            approval_status="APPROVED",
+            print(
+                f"Email    : {student.email}"
+            )
 
-            rejection_reason=None,
-        )
+            print(
+                f"Password : {TEST_PASSWORD}"
+            )
 
-        # ----------------------------------------------------
-        # Save
-        # ----------------------------------------------------
+            print(
+                f"Email Verified : {student.email_verified}"
+            )
 
-        db.add(student)
+            print(
+                f"Phone Verified : {student.phone_verified}"
+            )
 
-        db.commit()
+            print(
+                f"Approval Status : {student.approval_status}"
+            )
 
-        db.refresh(student)
-
-        print(
-            "============================================"
-        )
-
-        print(
-            "TEST STUDENT CREATED SUCCESSFULLY"
-        )
-
-        print(
-            "============================================"
-        )
-
-        print(
-            f"Student ID: {student.id}"
-        )
-
-        print(
-            f"Email: {student.email}"
-        )
-
-        print(
-            "Password: Student@123"
-        )
-
-        print(
-            f"Email Verified: {student.email_verified}"
-        )
-
-        print(
-            f"Phone Verified: {student.phone_verified}"
-        )
-
-        print(
-            f"Approval Status: {student.approval_status}"
-        )
-
-        print(
-            "============================================"
-        )
+            print(
+                "================================================"
+            )
 
     except Exception as error:
 
         db.rollback()
 
         print(
-            "ERROR:",
-            error
+            "================================================"
+        )
+
+        print(
+            "ERROR CREATING TEST STUDENT"
+        )
+
+        print(
+            "================================================"
+        )
+
+        print(
+            repr(error)
         )
 
         raise
