@@ -1,12 +1,21 @@
-# backend/routers/students.py
+# ============================================================
+# PragyanAI Student Verification Platform
+# File: backend/routers/students.py
+# ============================================================
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
+
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Student
-from schemas import StudentOut, UpdateStudent
-from security import current_student
+from schemas import StudentOut
+from routers.auth import get_current_student
 
 
 # ============================================================
@@ -27,103 +36,41 @@ router = APIRouter(
     "/me",
     response_model=StudentOut,
 )
-def get_my_profile(
-    current: Student = Depends(current_student),
+def get_student_profile(
+    current_student: Student = Depends(
+        get_current_student
+    ),
 ):
     """
-    Return the currently logged-in student's profile.
+    Return the profile of the currently
+    authenticated student.
     """
 
-    return current
+    return current_student
 
 
 # ============================================================
-# UPDATE CURRENT STUDENT PROFILE
+# GET CURRENT STUDENT DASHBOARD DATA
 # ============================================================
 
-@router.put(
-    "/me",
+@router.get(
+    "/profile",
     response_model=StudentOut,
 )
-def update_my_profile(
-    student_data: UpdateStudent,
-    current: Student = Depends(current_student),
-    db: Session = Depends(get_db),
+def get_student_profile_data(
+    current_student: Student = Depends(
+        get_current_student
+    ),
 ):
     """
-    Update the currently logged-in student's profile.
+    Return profile information for the
+    authenticated student.
+
+    This endpoint is useful for the
+    student dashboard.
     """
 
-    update_data = student_data.model_dump(
-        exclude_unset=True
-    )
-
-    # --------------------------------------------------------
-    # Nothing to update
-    # --------------------------------------------------------
-
-    if not update_data:
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No fields were provided for update.",
-        )
-
-    # --------------------------------------------------------
-    # Check duplicate phone
-    # --------------------------------------------------------
-
-    if "phone" in update_data:
-
-        existing_phone = (
-            db.query(Student)
-            .filter(
-                Student.phone == update_data["phone"],
-                Student.id != current.id,
-            )
-            .first()
-        )
-
-        if existing_phone:
-
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Phone number is already registered "
-                    "with another student."
-                ),
-            )
-
-    # --------------------------------------------------------
-    # Update fields
-    # --------------------------------------------------------
-
-    for field, value in update_data.items():
-
-        if hasattr(current, field):
-
-            setattr(
-                current,
-                field,
-                value,
-            )
-
-    # --------------------------------------------------------
-    # Profile changes may require re-verification
-    # --------------------------------------------------------
-
-    if "phone" in update_data:
-
-        current.phone_verified = False
-
-    # --------------------------------------------------------
-    # Save
-    # --------------------------------------------------------
-
-    db.commit()
-    db.refresh(current)
-
-    return current
+    return current_student
 
 
 # ============================================================
@@ -136,28 +83,47 @@ def update_my_profile(
 )
 def get_student(
     student_id: int,
-    current: Student = Depends(current_student),
+    current_student: Student = Depends(
+        get_current_student
+    ),
     db: Session = Depends(get_db),
 ):
     """
     Get a student record.
 
-    A student can only access their own record through this
-    endpoint.
+    A student can access only their own
+    student record through this endpoint.
     """
 
-    if current.id != student_id:
+    # --------------------------------------------------------
+    # AUTHORIZATION CHECK
+    # --------------------------------------------------------
+
+    if current_student.id != student_id:
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only access your own profile.",
+            detail=(
+                "You are not authorized to "
+                "access this student record."
+            ),
         )
+
+    # --------------------------------------------------------
+    # FIND STUDENT
+    # --------------------------------------------------------
 
     student = (
         db.query(Student)
-        .filter(Student.id == student_id)
+        .filter(
+            Student.id == student_id
+        )
         .first()
     )
+
+    # --------------------------------------------------------
+    # STUDENT NOT FOUND
+    # --------------------------------------------------------
 
     if student is None:
 
@@ -167,28 +133,3 @@ def get_student(
         )
 
     return student
-
-
-# ============================================================
-# DELETE CURRENT STUDENT ACCOUNT
-# ============================================================
-
-@router.delete(
-    "/me",
-)
-def delete_my_account(
-    current: Student = Depends(current_student),
-    db: Session = Depends(get_db),
-):
-    """
-    Delete the currently logged-in student's account.
-    """
-
-    db.delete(current)
-    db.commit()
-
-    return {
-        "success": True,
-        "message": "Student account deleted successfully.",
-    }
-  
