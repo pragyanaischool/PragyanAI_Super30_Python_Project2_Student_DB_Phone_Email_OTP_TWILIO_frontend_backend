@@ -20,9 +20,6 @@ from pydantic import (
 # ============================================================
 
 class ORMBaseModel(BaseModel):
-    """
-    Base Pydantic model for SQLAlchemy ORM objects.
-    """
 
     model_config = ConfigDict(
         from_attributes=True
@@ -91,10 +88,6 @@ class StudentRegister(BaseModel):
         max_length=128,
     )
 
-    # --------------------------------------------------------
-    # TEXT VALIDATION
-    # --------------------------------------------------------
-
     @field_validator(
         "full_name",
         "college_name",
@@ -102,7 +95,10 @@ class StudentRegister(BaseModel):
         "branch",
     )
     @classmethod
-    def clean_text(cls, value: str) -> str:
+    def clean_text(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -113,13 +109,12 @@ class StudentRegister(BaseModel):
 
         return value
 
-    # --------------------------------------------------------
-    # PHONE VALIDATION
-    # --------------------------------------------------------
-
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -130,13 +125,12 @@ class StudentRegister(BaseModel):
 
         return value
 
-    # --------------------------------------------------------
-    # EMAIL NORMALIZATION
-    # --------------------------------------------------------
-
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> EmailStr:
+    def normalize_email(
+        cls,
+        value: EmailStr,
+    ) -> EmailStr:
 
         return EmailStr(
             str(value).strip().lower()
@@ -204,10 +198,6 @@ class StudentUpdate(BaseModel):
         max_length=30,
     )
 
-    # --------------------------------------------------------
-    # TEXT VALIDATION
-    # --------------------------------------------------------
-
     @field_validator(
         "full_name",
         "college_name",
@@ -232,10 +222,6 @@ class StudentUpdate(BaseModel):
 
         return value
 
-    # --------------------------------------------------------
-    # PHONE VALIDATION
-    # --------------------------------------------------------
-
     @field_validator("phone")
     @classmethod
     def clean_optional_phone(
@@ -256,7 +242,6 @@ class StudentUpdate(BaseModel):
         return value
 
 
-# Existing students.py compatibility
 UpdateStudent = StudentUpdate
 
 
@@ -299,7 +284,6 @@ class StudentResponse(ORMBaseModel):
     updated_at: datetime
 
 
-# Existing routers compatibility
 StudentOut = StudentResponse
 
 
@@ -317,25 +301,23 @@ class LoginRequest(BaseModel):
         max_length=128,
     )
 
-    # --------------------------------------------------------
-    # EMAIL NORMALIZATION
-    # --------------------------------------------------------
-
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> EmailStr:
+    def normalize_email(
+        cls,
+        value: EmailStr,
+    ) -> EmailStr:
 
         return EmailStr(
             str(value).strip().lower()
         )
 
-    # --------------------------------------------------------
-    # PASSWORD VALIDATION
-    # --------------------------------------------------------
-
     @field_validator("password")
     @classmethod
-    def clean_password(cls, value: str) -> str:
+    def clean_password(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -347,7 +329,6 @@ class LoginRequest(BaseModel):
         return value
 
 
-# Existing auth.py compatibility
 Login = LoginRequest
 
 
@@ -362,7 +343,6 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-# Existing auth.py compatibility
 Token = TokenResponse
 
 
@@ -382,7 +362,10 @@ class OTP(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> EmailStr:
+    def normalize_email(
+        cls,
+        value: EmailStr,
+    ) -> EmailStr:
 
         return EmailStr(
             str(value).strip().lower()
@@ -390,7 +373,10 @@ class OTP(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str) -> str:
+    def validate_otp(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -417,7 +403,10 @@ class OTPRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> EmailStr:
+    def normalize_email(
+        cls,
+        value: EmailStr,
+    ) -> EmailStr:
 
         return EmailStr(
             str(value).strip().lower()
@@ -440,7 +429,10 @@ class OTPVerifyRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> EmailStr:
+    def normalize_email(
+        cls,
+        value: EmailStr,
+    ) -> EmailStr:
 
         return EmailStr(
             str(value).strip().lower()
@@ -448,7 +440,10 @@ class OTPVerifyRequest(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str) -> str:
+    def validate_otp(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -479,7 +474,10 @@ class PhoneOTPRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -511,7 +509,10 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def clean_phone(cls, value: str) -> str:
+    def clean_phone(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -524,7 +525,10 @@ class PhoneOTPVerifyRequest(BaseModel):
 
     @field_validator("otp")
     @classmethod
-    def validate_otp(cls, value: str) -> str:
+    def validate_otp(
+        cls,
+        value: str,
+    ) -> str:
 
         value = value.strip()
 
@@ -576,7 +580,6 @@ class MessageResponse(BaseModel):
     success: bool = True
 
 
-# Existing auth.py / otp.py compatibility
 Message = MessageResponse
 
 
