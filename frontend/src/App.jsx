@@ -1,12 +1,386 @@
-import{useState,useEffect}from'react';import{Routes,Route,Link,useNavigate,Navigate}from'react-router-dom';import api from'./api';import toast from'react-hot-toast';
-const save=d=>{localStorage.setItem('access_token',d.access_token);localStorage.setItem('user_type',d.user_type)};const logout=()=>{localStorage.clear();location.href='/'};
-function Home(){return <main className="hero"><nav><b>◈ PragyanAI</b><div><Link to="/login">Student Login</Link><Link className="btn ghost" to="/admin">Admin</Link></div></nav><section><div><small>SECURE STUDENT ONBOARDING</small><h1>Your PragyanAI student journey, beautifully connected.</h1><p>Create your profile, verify email and phone, wait for approval, and access your student portal.</p><Link className="btn" to="/register">Create Account →</Link></div><div className="glass"><h3>Verification Status</h3><p>✓ Email OTP</p><p>✓ Phone OTP</p><p>✓ Admin Approval</p><hr/><strong>Secure Student Portal</strong></div></section></main>}
-function Register(){const[f,setF]=useState({});const nav=useNavigate();const u=(k,v)=>setF({...f,[k]:v});async e=>{};const submit=async e=>{e.preventDefault();try{await api.post('/auth/register',{...f,tenth_cgpa:f.tenth_cgpa?+f.tenth_cgpa:null,twelfth_cgpa:f.twelfth_cgpa?+f.twelfth_cgpa:null,be_cgpa:f.be_cgpa?+f.be_cgpa:null});toast.success('Account created. Login to verify.');nav('/login')}catch(x){toast.error(x.response?.data?.detail||'Registration failed')}};return <Page title="Create Student Account"><form onSubmit={submit} className="form">{[['full_name','Full Name'],['college_name','College Name'],['degree','Degree'],['branch','Branch'],['tenth_cgpa','10th CGPA'],['twelfth_cgpa','12th CGPA'],['be_cgpa','BE CGPA'],['phone','Phone'],['email','Email'],['password','Password']].map(([k,l])=><label key={k}>{l}<input type={k==='password'?'password':k==='email'?'email':'text'} value={f[k]||''} onChange={e=>u(k,e.target.value)} required={!k.includes('cgpa')}/></label>)}<button className="btn">Create Account</button></form></Page>}
-function Login({admin=false}){const[email,setE]=useState(''),[password,setP]=useState('');const nav=useNavigate();const submit=async e=>{e.preventDefault();try{const r=await api.post(admin?'/admin/login':'/auth/login',{email,password});save(r.data);nav(admin?'/admin/dashboard':'/student')}catch(x){toast.error(x.response?.data?.detail||'Login failed')}};return <Page title={admin?'Admin Login':'Student Login'}><form onSubmit={submit} className="form"><label>Email<input type="email" value={email} onChange={e=>setE(e.target.value)} required/></label><label>Password<input type="password" value={password} onChange={e=>setP(e.target.value)} required/></label><button className="btn">Sign In →</button>{!admin&&<Link to="/register">New student? Create account</Link>}</form></Page>}
-function Verify(){const[type,setType]=useState('email'),[otp,setOtp]=useState(''),[sent,setSent]=useState(false),nav=useNavigate();const send=async()=>{try{await api.post(`/otp/${type}/send`);setSent(true);toast.success('OTP sent')}catch(x){toast.error(x.response?.data?.detail||'OTP failed')}};const verify=async()=>{try{await api.post(`/otp/${type}/verify`,{otp});toast.success('Verified');type==='email'?setType('phone'):nav('/pending')}catch(x){toast.error(x.response?.data?.detail||'Invalid OTP')}};return <Page title={`Verify ${type==='email'?'Email':'Phone'}`}><div className="center"><div className="otp">••••••</div>{!sent?<button className="btn" onClick={send}>Send OTP</button>:<><input className="otpbox" maxLength="6" value={otp} onChange={e=>setOtp(e.target.value)}/><button className="btn" onClick={verify}>Verify</button></>}</div></Page>}
-function Pending(){return <Page title="Pending Admin Approval"><div className="center"><div className="success">✓</div><p>Your email and phone are verified. Your profile is waiting for PragyanAI admin approval.</p><Link className="btn" to="/login">Back to Login</Link></div></Page>}
-function Student(){const[s,setS]=useState();useEffect(()=>{api.get('/auth/me').then(r=>setS(r.data)).catch(()=>logout())},[]);if(!s)return <div className="loading">Loading...</div>;return <Shell title={`Welcome, ${s.full_name}`}><div className="cards"><Card t="Email" v={s.email_verified?'Verified':'Pending'}/><Card t="Phone" v={s.phone_verified?'Verified':'Pending'}/><Card t="Approval" v={s.approval_status}/></div><div className="panel"><h3>Student Profile</h3><div className="grid">{Object.entries({College:s.college_name,Degree:s.degree,Branch:s.branch,Email:s.email,Phone:s.phone,'10th CGPA':s.tenth_cgpa||'—','12th CGPA':s.twelfth_cgpa||'—','BE CGPA':s.be_cgpa||'—'}).map(([k,v])=><div><small>{k}</small><b>{v}</b></div>)}</div></div></Shell>}
-function Admin(){const[students,setS]=useState([]);const load=()=>api.get('/admin/students').then(r=>setS(r.data));useEffect(load,[]);const decide=async(id,ok)=>{try{await api.put(`/admin/students/${id}/${ok?'approve':'reject'}`,ok?{}:{rejection_reason:prompt('Reason')||'Not approved'});toast.success('Updated');load()}catch(x){toast.error(x.response?.data?.detail||'Action failed')}};return <Shell title="Student Verification"><div className="panel table"><table><thead><tr><th>Student</th><th>College</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead><tbody>{students.map(s=><tr><td>{s.full_name}</td><td>{s.college_name}</td><td>{s.email_verified?'✓':'—'}</td><td>{s.phone_verified?'✓':'—'}</td><td>{s.approval_status}</td><td>{s.approval_status==='PENDING'&&<><button onClick={()=>decide(s.id,true)}>Approve</button><button onClick={()=>decide(s.id,false)}>Reject</button></>}</td></tr>)}</tbody></table></div></Shell>}
-function Page({title,children}){return <main className="auth"><div className="authcard"><Link to="/">← PragyanAI</Link><h1>{title}</h1>{children}</div></main>};function Shell({title,children}){return <><header><b>◈ PragyanAI</b><button onClick={logout}>Logout</button></header><main className="dash"><h1>{title}</h1>{children}</main></>};function Card({t,v}){return <div className="card"><small>{t}</small><strong>{v}</strong></div>}
-function Guard({role,children}){if(localStorage.getItem('user_type')!==role)return <Navigate to={role==='ADMIN'?'/admin':'/login'}/>;return children}
-export default function App(){return <Routes><Route path="/" element={<Home/>}/><Route path="/register" element={<Register/>}/><Route path="/login" element={<Login/>}/><Route path="/admin" element={<Login admin/>}/><Route path="/verify" element={<Guard role="STUDENT"><Verify/></Guard>}/><Route path="/pending" element={<Pending/>}/><Route path="/student" element={<Guard role="STUDENT"><Student/></Guard>}/><Route path="/admin/dashboard" element={<Guard role="ADMIN"><Admin/></Guard>}/></Routes>}
+import React from "react";
+import {
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+
+/* =========================================================
+   COMMON COMPONENTS
+   ========================================================= */
+
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import StudentProtectedRoute from "./components/StudentProtectedRoute";
+
+/* =========================================================
+   PUBLIC PAGES
+   ========================================================= */
+
+import Home from "./pages/Home";
+import Register from "./pages/Register";
+import EmailVerification from "./pages/EmailVerification";
+import PhoneVerification from "./pages/PhoneVerification";
+import Login from "./pages/Login";
+
+/* =========================================================
+   STUDENT PAGES
+   ========================================================= */
+
+import StudentDashboard from "./pages/StudentDashboard";
+import StudentProfile from "./pages/StudentProfile";
+
+/* =========================================================
+   ADMIN PAGES
+   ========================================================= */
+
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminStudents from "./pages/AdminStudents";
+import AdminStudentDetails from "./pages/AdminStudentDetails";
+
+/* =========================================================
+   PUBLIC LAYOUT
+   ========================================================= */
+
+function PublicLayout({ children }) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="app-main">
+        {children}
+      </main>
+
+      <Footer />
+    </>
+  );
+}
+
+/* =========================================================
+   STUDENT LAYOUT
+   ========================================================= */
+
+function StudentLayout({ children }) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="app-main student-app-main">
+        {children}
+      </main>
+
+      <Footer />
+    </>
+  );
+}
+
+/* =========================================================
+   ADMIN LAYOUT
+   ========================================================= */
+
+function AdminLayout({ children }) {
+  return (
+    <main className="admin-app-main">
+      {children}
+    </main>
+  );
+}
+
+/* =========================================================
+   404 PAGE
+   ========================================================= */
+
+function NotFound() {
+  return (
+    <div
+      style={{
+        minHeight: "70vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 20px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "600px",
+          textAlign: "center",
+          padding: "50px 30px",
+          borderRadius: "20px",
+          background: "#ffffff",
+          boxShadow: "0 15px 50px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "72px",
+            fontWeight: "800",
+            lineHeight: "1",
+            marginBottom: "15px",
+          }}
+        >
+          404
+        </div>
+
+        <h1
+          style={{
+            marginBottom: "12px",
+            fontSize: "30px",
+          }}
+        >
+          Page Not Found
+        </h1>
+
+        <p
+          style={{
+            color: "#6b7280",
+            marginBottom: "28px",
+            lineHeight: "1.6",
+          }}
+        >
+          The page you are looking for does not exist or may
+          have been moved.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = "/";
+          }}
+          style={{
+            border: "none",
+            borderRadius: "10px",
+            padding: "12px 24px",
+            cursor: "pointer",
+            fontWeight: "600",
+          }}
+        >
+          Go to Home
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   APPLICATION
+   ========================================================= */
+
+function App() {
+  return (
+    <Routes>
+
+      {/* =====================================================
+          PUBLIC ROUTES
+         ===================================================== */}
+
+      <Route
+        path="/"
+        element={
+          <PublicLayout>
+            <Home />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          <PublicLayout>
+            <Register />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/verify-email"
+        element={
+          <PublicLayout>
+            <EmailVerification />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/verify-phone"
+        element={
+          <PublicLayout>
+            <PhoneVerification />
+          </PublicLayout>
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          <PublicLayout>
+            <Login />
+          </PublicLayout>
+        }
+      />
+
+      {/* =====================================================
+          STUDENT ROUTES
+         ===================================================== */}
+
+      <Route
+        path="/student"
+        element={
+          <StudentProtectedRoute>
+            <StudentLayout>
+              <StudentDashboard />
+            </StudentLayout>
+          </StudentProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/dashboard"
+        element={
+          <StudentProtectedRoute>
+            <StudentLayout>
+              <StudentDashboard />
+            </StudentLayout>
+          </StudentProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/profile"
+        element={
+          <StudentProtectedRoute>
+            <StudentLayout>
+              <StudentProfile />
+            </StudentLayout>
+          </StudentProtectedRoute>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN LOGIN
+         ===================================================== */}
+
+      <Route
+        path="/admin"
+        element={
+          <Navigate
+            to="/admin/login"
+            replace
+          />
+        }
+      />
+
+      <Route
+        path="/admin/login"
+        element={
+          <AdminLayout>
+            <AdminLogin />
+          </AdminLayout>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN DASHBOARD
+         ===================================================== */}
+
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN STUDENTS
+         ===================================================== */}
+
+      <Route
+        path="/admin/students"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminStudents />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN STUDENT DETAILS
+         ===================================================== */}
+
+      <Route
+        path="/admin/students/:studentId"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminStudentDetails />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      {/* =====================================================
+          ADMIN STATUS FILTER ROUTES
+         ===================================================== */}
+
+      <Route
+        path="/admin/students/pending"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminStudents />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/students/approved"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminStudents />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/students/rejected"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout>
+              <AdminStudents />
+            </AdminLayout>
+          </AdminProtectedRoute>
+        }
+      />
+
+      {/* =====================================================
+          FALLBACK
+         ===================================================== */}
+
+      <Route
+        path="*"
+        element={
+          <PublicLayout>
+            <NotFound />
+          </PublicLayout>
+        }
+      />
+
+    </Routes>
+  );
+}
+
+export default App;
