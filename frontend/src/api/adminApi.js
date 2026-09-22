@@ -2,303 +2,471 @@ import api from "./api";
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN LOGIN
+| Admin Authentication
 |--------------------------------------------------------------------------
 */
 
+/**
+ * Login administrator
+ *
+ * Backend:
+ * POST /api/admin/login
+ *
+ * Request:
+ * {
+ *   email: "admin@pragyanai.com",
+ *   password: "********"
+ * }
+ *
+ * Response:
+ * {
+ *   access_token: "...",
+ *   token_type: "bearer"
+ * }
+ */
 export async function adminLogin(email, password) {
-  try {
-    const response = await api.post("/admin/login", {
-      email: email.trim().toLowerCase(),
-      password,
-    });
+  const response = await api.post("/admin/login", {
+    email: email.trim().toLowerCase(),
+    password,
+  });
 
-    /*
-     * Store JWT token.
-     */
-    if (response.data?.access_token) {
-      localStorage.setItem(
-        "admin_token",
-        response.data.access_token
-      );
-    }
+  const token = response.data?.access_token;
 
-    return response.data;
-  } catch (error) {
-    throw error;
+  if (!token) {
+    throw new Error(
+      "Admin login succeeded but no access token was returned."
+    );
   }
-}
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN LOGOUT
-|--------------------------------------------------------------------------
-*/
-
-export function adminLogout() {
-  localStorage.removeItem("admin_token");
+  localStorage.setItem("admin_token", token);
 
   /*
-   * Also remove student token to prevent
-   * accidental cross-session usage.
+   * Important:
+   * Remove student token when entering admin portal.
    */
   localStorage.removeItem("student_token");
 
+  return response.data;
+}
+
+/**
+ * Get currently stored admin JWT token.
+ */
+export function getAdminToken() {
+  return localStorage.getItem("admin_token");
+}
+
+/**
+ * Check whether an admin token exists.
+ */
+export function isAdminLoggedIn() {
+  return Boolean(getAdminToken());
+}
+
+/**
+ * Remove admin authentication token.
+ */
+export function clearAdminToken() {
+  localStorage.removeItem("admin_token");
+}
+
+/**
+ * Logout administrator.
+ */
+export function adminLogout() {
+  clearAdminToken();
+
+  /*
+   * Also remove student token to avoid
+   * accidentally mixing authentication sessions.
+   */
+  localStorage.removeItem("student_token");
+
+  /*
+   * Redirect to admin login.
+   */
   window.location.href = "/admin/login";
 }
 
-/*
-|--------------------------------------------------------------------------
-| CHECK ADMIN LOGIN
-|--------------------------------------------------------------------------
-*/
-
-export function isAdminLoggedIn() {
-  return Boolean(
-    localStorage.getItem("admin_token")
-  );
-}
 
 /*
 |--------------------------------------------------------------------------
-| GET ADMIN PROFILE
+| Admin Profile
 |--------------------------------------------------------------------------
-|
-| GET /api/admin/me
-|
 */
 
+/**
+ * Get currently authenticated administrator.
+ *
+ * Backend:
+ * GET /api/admin/me
+ *
+ * Authorization:
+ * Bearer <admin_token>
+ */
 export async function getAdminProfile() {
-  try {
-    const response = await api.get("/admin/me");
+  const response = await api.get("/admin/me");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 }
+
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN DASHBOARD
+| Admin Dashboard
 |--------------------------------------------------------------------------
-|
-| GET /api/admin/dashboard
-|
 */
 
+/**
+ * Get admin dashboard statistics.
+ *
+ * Backend:
+ * GET /api/admin/dashboard
+ *
+ * Expected response:
+ * {
+ *   total_students: 100,
+ *   pending_students: 20,
+ *   approved_students: 70,
+ *   rejected_students: 10,
+ *   email_verified: 90,
+ *   phone_verified: 85,
+ *   fully_verified: 80
+ * }
+ */
 export async function getAdminDashboard() {
-  try {
-    const response = await api.get(
-      "/admin/dashboard"
-    );
+  const response = await api.get("/admin/dashboard");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 }
+
 
 /*
 |--------------------------------------------------------------------------
-| GET ALL STUDENTS
+| Student Management
 |--------------------------------------------------------------------------
-|
-| GET /api/admin/students
-|
 */
 
+/**
+ * Get all students.
+ *
+ * Backend:
+ * GET /api/admin/students
+ */
 export async function getStudents() {
-  try {
-    const response = await api.get(
-      "/admin/students"
-    );
+  const response = await api.get("/admin/students");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  /*
+   * Depending on backend response, this may be:
+   *
+   * [
+   *   {...},
+   *   {...}
+   * ]
+   *
+   * OR
+   *
+   * {
+   *   students: [...]
+   * }
+   *
+   * We return the original backend response
+   * so pages can handle either format.
+   */
+  return response.data;
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET SINGLE STUDENT
-|--------------------------------------------------------------------------
-|
-| GET /api/admin/students/{student_id}
-|
-*/
 
+/**
+ * Get a single student by ID.
+ *
+ * Backend:
+ * GET /api/admin/students/{student_id}
+ */
 export async function getStudent(studentId) {
-  try {
-    if (!studentId) {
-      throw new Error(
-        "Student ID is required."
-      );
-    }
-
-    const response = await api.get(
-      `/admin/students/${studentId}`
-    );
-
-    return response.data;
-  } catch (error) {
-    throw error;
+  if (!studentId) {
+    throw new Error("Student ID is required.");
   }
+
+  const response = await api.get(
+    `/admin/students/${studentId}`
+  );
+
+  return response.data;
 }
 
-/*
-|--------------------------------------------------------------------------
-| APPROVE STUDENT
-|--------------------------------------------------------------------------
-|
-| PUT /api/admin/students/{student_id}/approve
-|
-*/
 
-export async function approveStudent(studentId) {
-  try {
-    if (!studentId) {
-      throw new Error(
-        "Student ID is required."
-      );
-    }
-
-    const response = await api.put(
-      `/admin/students/${studentId}/approve`
-    );
-
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| REJECT STUDENT
-|--------------------------------------------------------------------------
-|
-| PUT /api/admin/students/{student_id}/reject
-|
-*/
-
-export async function rejectStudent(
-  studentId,
-  reason = ""
-) {
-  try {
-    if (!studentId) {
-      throw new Error(
-        "Student ID is required."
-      );
-    }
-
-    const response = await api.put(
-      `/admin/students/${studentId}/reject`,
-      {
-        reason:
-          reason?.trim() || null,
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| GET STUDENTS BY STATUS
-|--------------------------------------------------------------------------
-|
-| Examples:
-|
-| PENDING
-| APPROVED
-| REJECTED
-|
-| GET /api/admin/students/status/PENDING
-|
-*/
-
+/**
+ * Get students by approval status.
+ *
+ * Backend:
+ * GET /api/admin/students/status/{approval_status}
+ *
+ * Examples:
+ * PENDING
+ * APPROVED
+ * REJECTED
+ */
 export async function getStudentsByStatus(
   approvalStatus
 ) {
-  try {
-    if (!approvalStatus) {
-      throw new Error(
-        "Approval status is required."
-      );
-    }
-
-    const status =
-      approvalStatus
-        .trim()
-        .toUpperCase();
-
-    const response = await api.get(
-      `/admin/students/status/${status}`
+  if (!approvalStatus) {
+    throw new Error(
+      "Approval status is required."
     );
-
-    return response.data;
-  } catch (error) {
-    throw error;
   }
+
+  const normalizedStatus =
+    String(approvalStatus)
+      .trim()
+      .toUpperCase();
+
+  const allowedStatuses = [
+    "PENDING",
+    "APPROVED",
+    "REJECTED",
+  ];
+
+  if (!allowedStatuses.includes(normalizedStatus)) {
+    throw new Error(
+      `Invalid approval status: ${approvalStatus}`
+    );
+  }
+
+  const response = await api.get(
+    `/admin/students/status/${normalizedStatus}`
+  );
+
+  return response.data;
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET PENDING STUDENTS
-|--------------------------------------------------------------------------
-*/
 
+/**
+ * Get pending students.
+ */
 export async function getPendingStudents() {
   return getStudentsByStatus("PENDING");
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET APPROVED STUDENTS
-|--------------------------------------------------------------------------
-*/
 
+/**
+ * Get approved students.
+ */
 export async function getApprovedStudents() {
   return getStudentsByStatus("APPROVED");
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET REJECTED STUDENTS
-|--------------------------------------------------------------------------
-*/
 
+/**
+ * Get rejected students.
+ */
 export async function getRejectedStudents() {
   return getStudentsByStatus("REJECTED");
 }
 
+
 /*
 |--------------------------------------------------------------------------
-| GET TOKEN
+| Student Approval
 |--------------------------------------------------------------------------
 */
 
-export function getAdminToken() {
-  return localStorage.getItem(
-    "admin_token"
+/**
+ * Approve a student.
+ *
+ * Backend:
+ * PUT /api/admin/students/{student_id}/approve
+ *
+ * No request body is required.
+ */
+export async function approveStudent(studentId) {
+  if (!studentId) {
+    throw new Error("Student ID is required.");
+  }
+
+  const response = await api.put(
+    `/admin/students/${studentId}/approve`
   );
+
+  return response.data;
 }
 
+
+/**
+ * Reject a student.
+ *
+ * Backend:
+ * PUT /api/admin/students/{student_id}/reject
+ *
+ * Request:
+ * {
+ *   reason: "Reason for rejection"
+ * }
+ */
+export async function rejectStudent(
+  studentId,
+  reason = ""
+) {
+  if (!studentId) {
+    throw new Error("Student ID is required.");
+  }
+
+  const response = await api.put(
+    `/admin/students/${studentId}/reject`,
+    {
+      reason:
+        typeof reason === "string" &&
+        reason.trim()
+          ? reason.trim()
+          : null,
+    }
+  );
+
+  return response.data;
+}
+
+
 /*
 |--------------------------------------------------------------------------
-| CLEAR ADMIN TOKEN
+| Convenience Functions
 |--------------------------------------------------------------------------
 */
 
-export function clearAdminToken() {
-  localStorage.removeItem(
-    "admin_token"
+/**
+ * Approve a student and return refreshed student data.
+ */
+export async function approveAndGetStudent(
+  studentId
+) {
+  await approveStudent(studentId);
+
+  return getStudent(studentId);
+}
+
+
+/**
+ * Reject a student and return refreshed student data.
+ */
+export async function rejectAndGetStudent(
+  studentId,
+  reason = ""
+) {
+  await rejectStudent(studentId, reason);
+
+  return getStudent(studentId);
+}
+
+
+/**
+ * Refresh dashboard statistics and students.
+ */
+export async function refreshAdminData() {
+  const [
+    dashboard,
+    students,
+  ] = await Promise.all([
+    getAdminDashboard(),
+    getStudents(),
+  ]);
+
+  return {
+    dashboard,
+    students,
+  };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Error Helper
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * Convert FastAPI/Axios errors into a readable message.
+ *
+ * FastAPI validation errors commonly look like:
+ *
+ * {
+ *   detail: [
+ *     {
+ *       loc: ["body", "email"],
+ *       msg: "value is not a valid email address",
+ *       type: "value_error"
+ *     }
+ *   ]
+ * }
+ */
+export function getAdminApiErrorMessage(
+  error,
+  fallbackMessage = "Something went wrong."
+) {
+  if (!error) {
+    return fallbackMessage;
+  }
+
+  const detail =
+    error?.response?.data?.detail;
+
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        return (
+          item?.msg ||
+          item?.message ||
+          "Validation error"
+        );
+      })
+      .join(", ");
+  }
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (
+    typeof error?.response?.data?.message ===
+    "string"
+  ) {
+    return error.response.data.message;
+  }
+
+  if (typeof error?.message === "string") {
+    return error.message;
+  }
+
+  return fallbackMessage;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Admin Session Utilities
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * Completely clear admin session.
+ */
+export function clearAdminSession() {
+  localStorage.removeItem("admin_token");
+}
+
+
+/**
+ * Check admin authentication state.
+ */
+export function hasAdminSession() {
+  const token = getAdminToken();
+
+  return Boolean(
+    token &&
+    typeof token === "string" &&
+    token.trim().length > 0
   );
 }
 
