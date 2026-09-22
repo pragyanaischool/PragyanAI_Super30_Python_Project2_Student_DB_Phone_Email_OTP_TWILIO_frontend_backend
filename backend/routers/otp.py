@@ -3,35 +3,45 @@
 # File: backend/routers/otp.py
 # ============================================================
 
-from datetime import datetime, timedelta, timezone
+import os
 import random
+import smtplib
+
+from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    status,
 )
+
+from pydantic import BaseModel, Field
 
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Student
-from schemas import Message
+
 from routers.auth import get_current_student
 
-# These imports must match your existing OTP/email utilities.
-# If your project uses different function names, we will align
-# them with the actual utils file.
-try:
-    from utils.email import send_email
-except ImportError:
-    send_email = None
+
+# ============================================================
+# OPTIONAL TWILIO IMPORT
+# ============================================================
 
 try:
-    from utils.sms import send_phone
-except ImportError:
-    send_phone = None
+    from twilio.rest import Client
 
+except ImportError:
+
+    Client = None
+
+
+# ============================================================
+# ROUTER
+# ============================================================
 
 router = APIRouter(
     prefix="/otp",
@@ -40,33 +50,99 @@ router = APIRouter(
 
 
 # ============================================================
-# OTP CONFIGURATION
+# CONFIGURATION
 # ============================================================
 
-OTP_EXPIRE_MINUTES = 10
+SMTP_HOST = os.getenv(
+    "SMTP_HOST",
+    "smtp.gmail.com",
+)
+
+SMTP_PORT = int(
+    os.getenv(
+        "SMTP_PORT",
+        "587",
+    )
+)
+
+EMAIL_ADDRESS = os.getenv(
+    "EMAIL_ADDRESS",
+    "",
+)
+
+EMAIL_APP_PASSWORD = os.getenv(
+    "EMAIL_APP_PASSWORD",
+    "",
+)
+
+OTP_EXPIRE_MINUTES = int(
+    os.getenv(
+        "OTP_EXPIRE_MINUTES",
+        "10",
+    )
+)
+
+TWILIO_ACCOUNT_SID = os.getenv(
+    "TWILIO_ACCOUNT_SID",
+    "",
+)
+
+TWILIO_AUTH_TOKEN = os.getenv(
+    "TWILIO_AUTH_TOKEN",
+    "",
+)
+
+TWILIO_VERIFY_SERVICE_SID = os.getenv(
+    "TWILIO_VERIFY_SERVICE_SID",
+    "",
+)
 
 
 # ============================================================
-# IN-MEMORY OTP STORAGE
+# DEVELOPMENT OTP STORAGE
 # ============================================================
 #
-# NOTE:
-# This is suitable for initial testing.
+# Used for email OTP.
 #
-# For production with multiple Render instances/restarts,
-# OTPs should eventually be stored in PostgreSQL or Redis.
-#
+# For production with multiple backend instances,
+# move OTP storage to PostgreSQL or Redis.
+# ============================================================
 
-email_otps = {}
-
-phone_otps = {}
+email_otp_store = {}
 
 
 # ============================================================
-# GENERATE OTP
+# REQUEST SCHEMAS
 # ============================================================
 
-def generate_otp() -> str:
+class OTPVerifyRequest(BaseModel):
+
+    otp: str = Field(
+        ...,
+        min_length=4,
+        max_length=10,
+    )
+
+
+# ============================================================
+# RESPONSE HELPER
+# ============================================================
+
+def success_response(
+    message: str,
+):
+    return {
+        "message": message,
+        "success": True,
+    }
+
+
+# ============================================================
+# GENERATE EMAIL OTP
+# ============================================================
+
+def generate_email_otp() -> str:
+
     return str(
         random.randint(
             100000,
@@ -76,25 +152,115 @@ def generate_otp() -> str:
 
 
 # ============================================================
+# SEND EMAIL
+# ============================================================
+
+def send_email(
+    to_email: str,
+    subject: str,
+    body: str,
+):
+
+    if not EMAIL_ADDRESS:
+        raise RuntimeError(
+            "EMAIL_ADDRESS is not configured."
+        )
+
+    if not EMAIL_APP_PASSWORD:
+        raise RuntimeError(
+            "EMAIL_APP_PASSWORD is not configured."
+        )
+
+    message = EmailMessage()
+
+    message["Subject"] = subject
+    message["From"] = EMAIL_ADDRESS
+    message["To"] = to_email
+
+    message.set_content(body)
+
+    with smtplib.SMTP(
+        SMTP_HOST,
+        SMTP_PORT,
+        timeout=30,
+    ) as smtp:
+
+        smtp.starttls()
+
+        smtp.login(
+            EMAIL_ADDRESS,
+            EMAIL_APP_PASSWORD,
+        )
+
+        smtp.send_message(
+            message
+        )
+
+
+# ============================================================
+# TWILIO CLIENT
+# ============================================================
+
+def get_twilio_client():
+
+    if Client is None:
+
+        raise RuntimeError(
+            "Twilio package is not installed."
+        )
+
+    if not TWILIO_ACCOUNT_SID:
+
+        raise RuntimeError(
+            "TWILIO_ACCOUNT_SID is not configured."
+        )
+
+    if not TWILIO_AUTH_TOKEN:
+
+        raise RuntimeError(
+            "TWILIO_AUTH_TOKEN is not configured."
+        )
+
+    if not TWILIO_VERIFY_SERVICE_SID:
+
+        raise RuntimeError(
+            "TWILIO_VERIFY_SERVICE_SID is not configured."
+        )
+
+    return Client(
+        TWILIO_ACCOUNT_SID,
+        TWILIO_AUTH_TOKEN,
+    )
+
+
+# ============================================================
 # SEND EMAIL OTP
 # ============================================================
 
 @router.post(
     "/email/send",
-    response_model=Message,
 )
 def send_email_otp(
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(
+        get_current_student
+    ),
 ):
+
+    # --------------------------------------------------------
+    # ALREADY VERIFIED
+    # --------------------------------------------------------
 
     if current_student.email_verified:
 
-        return {
-            "message": "Email is already verified.",
-            "success": True,
-        }
+        return success_response(
+            "Email is already verified."
+        )
 
-    otp = generate_otp()
+    # --------------------------------------------------------
+    # GENERATE OTP
+    # --------------------------------------------------------
+
+    otp = generate_email_otp()
 
     expires_at = (
         datetime.now(timezone.utc)
@@ -103,47 +269,90 @@ def send_email_otp(
         )
     )
 
-    email_otps[
+    email_otp_store[
         current_student.email
     ] = {
         "otp": otp,
         "expires_at": expires_at,
     }
 
-    print(
-        f"EMAIL OTP for "
-        f"{current_student.email}: {otp}"
-    )
+    # --------------------------------------------------------
+    # EMAIL BODY
+    # --------------------------------------------------------
 
-    if send_email is not None:
+    body = f"""
+Dear {current_student.full_name},
 
-        try:
+Your PragyanAI email verification OTP is:
 
-            send_email(
-                to_email=current_student.email,
-                subject="PragyanAI Email Verification OTP",
-                body=(
-                    "Your PragyanAI email verification OTP is: "
-                    f"{otp}\n\n"
-                    f"This OTP is valid for "
-                    f"{OTP_EXPIRE_MINUTES} minutes."
-                ),
-            )
+{otp}
 
-        except Exception as error:
+This OTP is valid for {OTP_EXPIRE_MINUTES} minutes.
 
-            print(
-                "Email OTP sending error:",
-                error,
-            )
+Please do not share this OTP with anyone.
 
-    return {
-        "message": (
-            "Email OTP generated successfully. "
-            "Please check your email."
-        ),
-        "success": True,
-    }
+Regards,
+PragyanAI
+Student Verification Platform
+""".strip()
+
+    # --------------------------------------------------------
+    # SEND EMAIL
+    # --------------------------------------------------------
+
+    try:
+
+        send_email(
+            to_email=current_student.email,
+            subject="PragyanAI Email Verification OTP",
+            body=body,
+        )
+
+        print(
+            "Email OTP sent successfully to:",
+            current_student.email,
+        )
+
+        return success_response(
+            "Email OTP sent successfully."
+        )
+
+    except Exception as error:
+
+        # Keep OTP available for development/testing.
+        print(
+            "Email OTP sending failed:",
+            error,
+        )
+
+        print(
+            "================================================"
+        )
+
+        print(
+            "DEVELOPMENT EMAIL OTP"
+        )
+
+        print(
+            f"Email: {current_student.email}"
+        )
+
+        print(
+            f"OTP: {otp}"
+        )
+
+        print(
+            "================================================"
+        )
+
+        # We return success because the OTP was generated.
+        # The OTP can be retrieved from Render logs during
+        # development if SMTP is not configured correctly.
+
+        return success_response(
+            "Email OTP generated. "
+            "Please check your email or server logs."
+        )
 
 
 # ============================================================
@@ -152,59 +361,101 @@ def send_email_otp(
 
 @router.post(
     "/email/verify",
-    response_model=Message,
 )
 def verify_email_otp(
-    otp: str,
-    current_student: Student = Depends(get_current_student),
+    request: OTPVerifyRequest,
+    current_student: Student = Depends(
+        get_current_student
+    ),
     db: Session = Depends(get_db),
 ):
 
-    email = current_student.email
+    # --------------------------------------------------------
+    # ALREADY VERIFIED
+    # --------------------------------------------------------
 
-    stored = email_otps.get(email)
+    if current_student.email_verified:
 
-    if not stored:
+        return success_response(
+            "Email is already verified."
+        )
+
+    # --------------------------------------------------------
+    # FIND OTP
+    # --------------------------------------------------------
+
+    stored_otp = email_otp_store.get(
+        current_student.email
+    )
+
+    if not stored_otp:
 
         raise HTTPException(
-            status_code=400,
-            detail="No email OTP found. Please request a new OTP.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "No email OTP found. "
+                "Please request a new OTP."
+            ),
         )
+
+    # --------------------------------------------------------
+    # CHECK EXPIRATION
+    # --------------------------------------------------------
 
     now = datetime.now(timezone.utc)
 
-    if now > stored["expires_at"]:
+    expires_at = stored_otp[
+        "expires_at"
+    ]
 
-        email_otps.pop(
-            email,
+    if now > expires_at:
+
+        email_otp_store.pop(
+            current_student.email,
             None,
         )
 
         raise HTTPException(
-            status_code=400,
-            detail="Email OTP has expired. Please request a new OTP.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Email OTP has expired. "
+                "Please request a new OTP."
+            ),
         )
 
-    if str(otp).strip() != str(stored["otp"]):
+    # --------------------------------------------------------
+    # CHECK OTP
+    # --------------------------------------------------------
+
+    if request.otp.strip() != str(
+        stored_otp["otp"]
+    ):
 
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email OTP.",
         )
+
+    # --------------------------------------------------------
+    # VERIFY EMAIL
+    # --------------------------------------------------------
 
     current_student.email_verified = True
 
     db.commit()
 
-    email_otps.pop(
-        email,
+    db.refresh(
+        current_student
+    )
+
+    email_otp_store.pop(
+        current_student.email,
         None,
     )
 
-    return {
-        "message": "Email verified successfully.",
-        "success": True,
-    }
+    return success_response(
+        "Email verified successfully."
+    )
 
 
 # ============================================================
@@ -213,67 +464,67 @@ def verify_email_otp(
 
 @router.post(
     "/phone/send",
-    response_model=Message,
 )
 def send_phone_otp(
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(
+        get_current_student
+    ),
 ):
+
+    # --------------------------------------------------------
+    # ALREADY VERIFIED
+    # --------------------------------------------------------
 
     if current_student.phone_verified:
 
-        return {
-            "message": "Phone number is already verified.",
-            "success": True,
-        }
-
-    otp = generate_otp()
-
-    expires_at = (
-        datetime.now(timezone.utc)
-        + timedelta(
-            minutes=OTP_EXPIRE_MINUTES
+        return success_response(
+            "Phone number is already verified."
         )
-    )
 
-    phone_otps[
-        current_student.phone
-    ] = {
-        "otp": otp,
-        "expires_at": expires_at,
-    }
+    # --------------------------------------------------------
+    # TWILIO
+    # --------------------------------------------------------
 
-    print(
-        f"PHONE OTP for "
-        f"{current_student.phone}: {otp}"
-    )
+    try:
 
-    if send_phone is not None:
+        client = get_twilio_client()
 
-        try:
-
-            send_phone(
-                phone_number=current_student.phone,
-                message=(
-                    "PragyanAI verification OTP: "
-                    f"{otp}. "
-                    f"Valid for {OTP_EXPIRE_MINUTES} minutes."
-                ),
+        verification = (
+            client.verify
+            .v2
+            .services(
+                TWILIO_VERIFY_SERVICE_SID
             )
-
-        except Exception as error:
-
-            print(
-                "Phone OTP sending error:",
-                error,
+            .verifications
+            .create(
+                to=current_student.phone,
+                channel="sms",
             )
+        )
 
-    return {
-        "message": (
-            "Phone OTP generated successfully. "
-            "Please check your phone."
-        ),
-        "success": True,
-    }
+        print(
+            "Twilio phone verification started:",
+            verification.status,
+        )
+
+        return success_response(
+            "Phone OTP sent successfully."
+        )
+
+    except Exception as error:
+
+        print(
+            "Phone OTP sending error:",
+            error,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Unable to send phone OTP. "
+                "Please check Twilio configuration."
+            ),
+        )
 
 
 # ============================================================
@@ -282,56 +533,119 @@ def send_phone_otp(
 
 @router.post(
     "/phone/verify",
-    response_model=Message,
 )
 def verify_phone_otp(
-    otp: str,
-    current_student: Student = Depends(get_current_student),
+    request: OTPVerifyRequest,
+    current_student: Student = Depends(
+        get_current_student
+    ),
     db: Session = Depends(get_db),
 ):
 
-    phone = current_student.phone
+    # --------------------------------------------------------
+    # ALREADY VERIFIED
+    # --------------------------------------------------------
 
-    stored = phone_otps.get(phone)
+    if current_student.phone_verified:
 
-    if not stored:
+        return success_response(
+            "Phone number is already verified."
+        )
+
+    # --------------------------------------------------------
+    # TWILIO
+    # --------------------------------------------------------
+
+    try:
+
+        client = get_twilio_client()
+
+        verification_check = (
+            client.verify
+            .v2
+            .services(
+                TWILIO_VERIFY_SERVICE_SID
+            )
+            .verification_checks
+            .create(
+                to=current_student.phone,
+                code=request.otp.strip(),
+            )
+        )
+
+        print(
+            "Twilio verification status:",
+            verification_check.status,
+        )
+
+        if verification_check.status != "approved":
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid phone OTP.",
+            )
+
+        # ----------------------------------------------------
+        # UPDATE DATABASE
+        # ----------------------------------------------------
+
+        current_student.phone_verified = True
+
+        db.commit()
+
+        db.refresh(
+            current_student
+        )
+
+        return success_response(
+            "Phone number verified successfully."
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+
+        print(
+            "Phone OTP verification error:",
+            error,
+        )
 
         raise HTTPException(
-            status_code=400,
-            detail="No phone OTP found. Please request a new OTP.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Unable to verify phone OTP. "
+                "Please check Twilio configuration."
+            ),
         )
 
-    now = datetime.now(timezone.utc)
 
-    if now > stored["expires_at"]:
+# ============================================================
+# VERIFICATION STATUS
+# ============================================================
 
-        phone_otps.pop(
-            phone,
-            None,
-        )
-
-        raise HTTPException(
-            status_code=400,
-            detail="Phone OTP has expired. Please request a new OTP.",
-        )
-
-    if str(otp).strip() != str(stored["otp"]):
-
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid phone OTP.",
-        )
-
-    current_student.phone_verified = True
-
-    db.commit()
-
-    phone_otps.pop(
-        phone,
-        None,
-    )
+@router.get(
+    "/status",
+)
+def verification_status(
+    current_student: Student = Depends(
+        get_current_student
+    ),
+):
 
     return {
-        "message": "Phone number verified successfully.",
-        "success": True,
+        "email": current_student.email,
+        "phone": current_student.phone,
+
+        "email_verified": bool(
+            current_student.email_verified
+        ),
+
+        "phone_verified": bool(
+            current_student.phone_verified
+        ),
+
+        "approval_status": (
+            current_student.approval_status
+        ),
     }
